@@ -1,7 +1,7 @@
 # editing-assistant-tool
 
-## H2 This code eventually will:
-### H3 High priority:
+## This code eventually will:
+### High priority:
 - Import a video/audio
 - Display the properties of the video
 - Detect silence and add to EDL
@@ -13,7 +13,7 @@
 
 ---
 
-### H3 Medium priority:
+### Medium priority:
 - Mute swear words
 - Beep swear words
 - Burn subtitles into video
@@ -23,7 +23,7 @@
 
 ---
 
-### H3 Low priority:
+### Low priority:
 - Compress audio
 - Detect low-motion/static scenes
 - Auto cut silences
