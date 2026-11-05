@@ -1,6 +1,6 @@
 # editing-assistant-tool
 
-## This code eventually will:
+## The plan is simple...:
 ### High priority:
 - Import a video/audio
 - Display the properties of the video
