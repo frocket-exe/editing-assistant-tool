@@ -34,3 +34,4 @@
 # Dependencies
 - requirements.txt
 - ffmpeg
+- python 3.12
