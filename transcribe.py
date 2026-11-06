@@ -2,7 +2,10 @@ import whisperx
 
 def transcribe(filePath):
     print("Transcribing....")
-    model = whisperx.load_model("base")
+    modelSize = "base"
+    device = "cpu"
+    compute_type = "int8"
+    model = whisperx.load_model(modelSize, device, compute_type)
     transcription = model.transcribe(filePath)
     print(transcription)
 
