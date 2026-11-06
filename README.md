@@ -30,3 +30,7 @@
 - Subtitle translation
 - Plot graphs about video properties
 - Compare score for video before/after processing
+
+# Dependencies
+- requirements.txt
+- ffmpeg
