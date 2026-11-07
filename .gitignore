@@ -1,3 +1,5 @@
 .venv/
 media/
 videoMetrics.json
+json/
+edl/
