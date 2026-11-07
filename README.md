@@ -40,3 +40,7 @@
 + .venv/Script/activate
 + pip freeze > requirements.txt
 + pip install -r requirements.txt
+
+# AI Usage
+### WhisperX local transcription/alignment model used
+### Silero-VAD local voice activity detection model used
