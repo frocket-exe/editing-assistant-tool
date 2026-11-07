@@ -6,7 +6,8 @@ def transcribe(filePath):
     device = "cpu"
     compute_type = "int8"
     model = whisperx.load_model(modelSize, device, compute_type=compute_type)
-    transcription = model.transcribe(filePath, language="en")
+    audio = whisperx.load_audio(filePath)
+    transcription = model.transcribe(audio, language="en")
     print(transcription["segments"])
 
-transcribe("media/testAudio.wav")
+transcribe("media/testVideo.mp4")
