@@ -37,6 +37,6 @@
 - python 3.12
 
 # Dummy don't forget these commands
-.venv/Script/activate
-pip freeze > requirements.txt
-pip install -r requirements.txt
++ .venv/Script/activate
++ pip freeze > requirements.txt
++ pip install -r requirements.txt
