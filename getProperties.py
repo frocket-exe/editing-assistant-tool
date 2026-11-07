@@ -27,7 +27,7 @@ def getProperties(PATH):
                 metrics[stream["codec_type"]][data] = stream[data]
 
     json_metrics = json.dumps(metrics, indent=4)
-    with open("videoMetrics.json", "w") as f:
+    with open("json/videoMetrics.json", "w") as f:
         f.write(json_metrics)
         f.close()
 
