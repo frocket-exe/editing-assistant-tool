@@ -1,0 +1,5 @@
+Trim function ffmpeg:
+https://superuser.com/questions/681885/how-can-i-remove-multiple-segments-from-a-video-using-ffmpeg
+
+Concat ffmpeg:
+https://trac.ffmpeg.org/wiki/Concatenate
