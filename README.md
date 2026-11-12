@@ -3,8 +3,8 @@
 ## The plan is simple...:
 ### High priority:
 - Import a video/audio
-- Display the properties of the video
-- Detect silence and add to EDL
+- Display the properties of the video []
+- Detect silence and add to EDL [x]
 - Transcribe using whisperX
 - Export subtitles as SRT
 - Swear word detection (+ EDL)
