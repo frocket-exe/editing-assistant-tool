@@ -1,6 +1,7 @@
 from silero_vad import load_silero_vad, read_audio, get_speech_timestamps
 import subprocess
 import json
+import os
 
 
 def findSilences(inputPath):
@@ -74,9 +75,44 @@ def markSilences(inputPath, minSilenceDuration, attack, release):
     with open("json/silencesToCut.json", "w") as f:
         f.write(json_silences)
         f.close()
+    return silences_data
         
-
+def removeSilences(videoPath):
+    # cmd = ["ffmpeg", "-y", "-i", videoPath, "-ss", "0.5", "-to", "3.5", "silent_video_segments/video_part01.mp4", "-ss", "5.4", "-to", "9", "silent_video_segments/video_part02.mp4"]
+    cmd = ["ffmpeg", "-y", "-i", videoPath]
+    with open("json/silencesToCut.json", "r") as f:
+        silences_data = json.load(f)
+    os.makedirs(os.path.dirname("silent_video_segments/segment_list.txt"), exist_ok=True)
+    f = open("silent_video_segments/segment_list.txt", "w")
+    silences = silences_data["timestamps"]
+    silences.insert(0, {"end":0})
+    for i in range(len(silences)-1):
+        cmd.append("-ss")
+        cmd.append(str(silences[i]["end"]))
+        cmd.append("-to")
+        cmd.append(str(silences[i+1]["start"]))
+        # cmd.append("-c:v")
+        # cmd.append("libx264")
+        # cmd.append("-c:a")
+        # cmd.append("aac")
+        cmd.append(f"silent_video_segments/video_part{i:05}.mp4")
+        f.write(f"file 'video_part{i:05}.mp4'\n")
+    cmd.append("-ss")
+    cmd.append(str(silences[(len(silences)-1)]["end"]))
+    cmd.append("-t")
+    cmd.append("99999")
+    # cmd.append("-c:v")
+    # cmd.append("libx264")
+    # cmd.append("-c:a")
+    # cmd.append("aac")
+    cmd.append(f"silent_video_segments/video_part{(len(silences)-1):05}.mp4")
+    f.write(f"file 'video_part{(len(silences)-1):05}.mp4'")
+    f.close()
+    subprocess.run(cmd)
+    cmd = ["ffmpeg", "-y", "-fflags", "+genpts", "-f", "concat", "-i", "silent_video_segments/segment_list.txt", "-c", "copy", "media/cutVideo.mp4"]
+    subprocess.run(cmd)
 
 inputName = "testVideo.mp4"
 inputPath = "media/" + inputName
-markSilences(inputPath, minSilenceDuration=1, attack=0.1, release=0.15)
+# markSilences(inputPath, minSilenceDuration=1, attack=0.1, release=0.15)
+removeSilences(inputPath)   
