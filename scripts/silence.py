@@ -41,19 +41,19 @@ def findSilences(inputPath):
         silentTimestamps.append(silentSegment)
 
     # Writes to a json file to beuser by other functions
-    json_silences = json.dumps(silentTimestamps, indent=4)
+    json_data = {"frameRate": frameRate, "duration": duration, "silences": silentTimestamps}
     with open("json/silences.json", "w") as f:
-        f.write(json_silences)
+        f.write(json.dumps(json_data, indent=4))
         f.close()
-
-    return frameRate
 
 # Marks silences which are eligible to be cut based on user defined parameters:
 # Minimum silence duration, attack and release
 def markSilences(inputPath, minSilenceDuration, attack, release):
-    frameRate = findSilences(inputPath)
     with open("json/silences.json", "r") as f:
-        silences = json.load(f)
+        data = json.load(f)
+    frameRate = data["frameRate"]
+    duration = data["duration"]
+    silences = data["silences"]
     cutSilences = []
     for i, silence in enumerate(silences):
         if silence["duration"] >= minSilenceDuration and silence["duration"] >= attack + release:
@@ -69,50 +69,37 @@ def markSilences(inputPath, minSilenceDuration, attack, release):
                 cutSilenceEnd = silence["end"]
             cutSilence = {'start': cutSilenceStart, 'end': cutSilenceEnd, 'note':'silence'}
             cutSilences.append(cutSilence)
-    silences_data = {"title": "Silence to markers", "colour": "Red", "frameRate": frameRate, "timestamps": cutSilences}
+    silences_data = {"title": "Silence to markers", "colour": "Red", "frameRate": frameRate, "duration": duration, "timestamps": cutSilences}
     # Write to file
     json_silences = json.dumps(silences_data, indent=4)
     with open("json/silencesToCut.json", "w") as f:
         f.write(json_silences)
         f.close()
     return silences_data
+
         
 def removeSilences(videoPath):
-    # cmd = ["ffmpeg", "-y", "-i", videoPath, "-ss", "0.5", "-to", "3.5", "silent_video_segments/video_part01.mp4", "-ss", "5.4", "-to", "9", "silent_video_segments/video_part02.mp4"]
     cmd = ["ffmpeg", "-y", "-i", videoPath]
     with open("json/silencesToCut.json", "r") as f:
         silences_data = json.load(f)
     os.makedirs(os.path.dirname("silent_video_segments/segment_list.txt"), exist_ok=True)
     f = open("silent_video_segments/segment_list.txt", "w")
+    duration = silences_data["duration"]
     silences = silences_data["timestamps"]
-    silences.insert(0, {"end":0})
+    if silences[0]["start"] != 0:
+        silences.insert(0, {"end": 0})
+    if silences[-1]["end"] != duration:
+        silences.append({"start": duration})
     for i in range(len(silences)-1):
-        cmd.append("-ss")
-        cmd.append(str(silences[i]["end"]))
-        cmd.append("-to")
-        cmd.append(str(silences[i+1]["start"]))
-        # cmd.append("-c:v")
-        # cmd.append("libx264")
-        # cmd.append("-c:a")
-        # cmd.append("aac")
-        cmd.append(f"silent_video_segments/video_part{i:05}.mp4")
+        cmd += ["-ss", str(silences[i]["end"]), "-to", str(silences[i+1]["start"]), f"silent_video_segments/video_part{i:05}.mp4"]
         f.write(f"file 'video_part{i:05}.mp4'\n")
-    cmd.append("-ss")
-    cmd.append(str(silences[(len(silences)-1)]["end"]))
-    cmd.append("-t")
-    cmd.append("99999")
-    # cmd.append("-c:v")
-    # cmd.append("libx264")
-    # cmd.append("-c:a")
-    # cmd.append("aac")
-    cmd.append(f"silent_video_segments/video_part{(len(silences)-1):05}.mp4")
-    f.write(f"file 'video_part{(len(silences)-1):05}.mp4'")
     f.close()
     subprocess.run(cmd)
     cmd = ["ffmpeg", "-y", "-fflags", "+genpts", "-f", "concat", "-i", "silent_video_segments/segment_list.txt", "-c", "copy", "media/cutVideo.mp4"]
     subprocess.run(cmd)
 
-inputName = "testVideo.mp4"
+inputName = "testVideo02.mp4"
 inputPath = "media/" + inputName
-# markSilences(inputPath, minSilenceDuration=1, attack=0.1, release=0.15)
-removeSilences(inputPath)   
+findSilences(inputPath)
+markSilences(inputPath, minSilenceDuration=1, attack=0.1, release=0.15)
+removeSilences(inputPath)
