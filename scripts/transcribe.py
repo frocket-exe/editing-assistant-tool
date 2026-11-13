@@ -26,25 +26,30 @@ def splitSegment(words):
     splitSegments = [words[0:biggestGap["index"]+1], words[biggestGap["index"]+1:]]
     return splitSegments
 
-def transcriptToCaptions(segments, characterLimit=30, wordLimit=4, maxTime=1):
+def transcriptToCaptions(segments, characterLimit=30, wordLimit=4, maxTime=2):
     captions = []
     for segment in segments:
         words = segment["words"]
         wordCount = len(words)
+        characterCount = len(" ".join(w["word"] for w in words))
+        timeCount = words[-1]["end"]-words[0]["start"]
         processedWords = []
         processedWordCount = 0
-        if wordCount <= wordLimit:
+        if (wordCount <= wordLimit and characterCount <= characterLimit and timeCount <= maxTime) or wordCount == 1:
             captions.append(segment)
         else:
             subsegments = [words]
             while processedWordCount != wordCount:
                 splitSegments = splitSegment(subsegments.pop(0))
-                for j in [1, 0]:
-                    if len(splitSegments[j]) <= wordLimit:
-                        processedWords.append(splitSegments[j])
-                        processedWordCount += len(splitSegments[j])
+                for segment in splitSegments:
+                    wordCount = len(segment)
+                    characterCount = len(" ".join(w["word"] for w in segment))
+                    timeCount = segment[-1]["end"]-segment[0]["start"]
+                    if (wordCount <= wordLimit and characterCount <= characterLimit and timeCount <= maxTime) or wordCount == 1:
+                        processedWords.append(segment)
+                        processedWordCount += len(segment)
                     else:
-                        subsegments.insert(0, splitSegments[j])
+                        subsegments.insert(0, segment)
             captions += processedWords
     segmentedCaptions = []
     for caption in captions:
