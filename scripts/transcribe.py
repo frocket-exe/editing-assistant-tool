@@ -7,10 +7,16 @@ def transcribe(filePath):
     modelSize = "large-v2"
     device = "cpu"
     compute_type = "int8"
-    model = whisperx.load_model(modelSize, device, compute_type=compute_type)
+    model = whisperx.load_model(modelSize, device, compute_type=compute_type, vad_method="silero")
     audio = whisperx.load_audio(filePath)
     transcription = model.transcribe(audio, language="en")
-    return transcription['segments']
+    # print(transcription["segments"])
+
+    # Align transcripted words
+    print("Aligning....")
+    align_model, metadata = whisperx.load_align_model(language_code = transcription["language"], device=device)
+    result = whisperx.align(transcription["segments"], align_model, metadata, audio, device, return_char_alignments=False)
+    return result["segments"]
 
 # Converts seconds to the timecode format used in the srt standard
 def secondsToTimecode(seconds):
@@ -26,10 +32,10 @@ def transcriptionToSrt(transcription):
     for i, segment in enumerate(transcription):
         srtText += f"{i+1}\n"
         srtText += f"{secondsToTimecode(segment["start"])} --> {secondsToTimecode(segment["end"])}\n"
-        srtText += segment["text"]
+        srtText += f"{segment["text"]}\n\n"
     with open("srt/transcription.srt", "w") as f:
         f.write(srtText)
         f.close()
 
 t = transcribe("media/testVideo.mp4")
-transcriptionToSrt(t)
+# transcriptionToSrt(t)
