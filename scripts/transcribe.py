@@ -10,13 +10,49 @@ def transcribe(filePath):
     model = whisperx.load_model(modelSize, device, compute_type=compute_type, vad_method="silero")
     audio = whisperx.load_audio(filePath)
     transcription = model.transcribe(audio, language="en")
-    # print(transcription["segments"])
 
     # Align transcripted words
     print("Aligning....")
     align_model, metadata = whisperx.load_align_model(language_code = transcription["language"], device=device)
     result = whisperx.align(transcription["segments"], align_model, metadata, audio, device, return_char_alignments=False)
     return result["segments"]
+
+def splitSegment(words):
+    biggestGap = {}
+    for i in range(len(words)-1):
+        gap = words[i+1]['start'] - words[i]['end']
+        if biggestGap == {} or gap > biggestGap['gap']:
+            biggestGap = {"index": i, "gap": gap}
+    splitSegments = [words[0:biggestGap["index"]+1], words[biggestGap["index"]+1:]]
+    return splitSegments
+
+def transcriptToCaptions(segments, characterLimit=30, wordLimit=4, maxTime=1):
+    captions = []
+    for segment in segments:
+        words = segment["words"]
+        wordCount = len(words)
+        processedWords = []
+        processedWordCount = 0
+        if wordCount <= wordLimit:
+            captions.append(segment)
+        else:
+            subsegments = [words]
+            while processedWordCount != wordCount:
+                splitSegments = splitSegment(subsegments.pop(0))
+                for j in [1, 0]:
+                    if len(splitSegments[j]) <= wordLimit:
+                        processedWords.append(splitSegments[j])
+                        processedWordCount += len(splitSegments[j])
+                    else:
+                        subsegments.insert(0, splitSegments[j])
+            captions += processedWords
+    segmentedCaptions = []
+    for caption in captions:
+        seg = {'start': float(caption[0]['start']), 'end': float(caption[-1]['end']), 'text': " ".join([cap["word"] for cap in caption])}
+        segmentedCaptions.append(seg)
+    sortedSegmentedCaptions = sorted(segmentedCaptions, key=lambda d: d['start'])
+    return(sortedSegmentedCaptions)
+
 
 # Converts seconds to the timecode format used in the srt standard
 def secondsToTimecode(seconds):
@@ -38,4 +74,5 @@ def transcriptionToSrt(transcription):
         f.close()
 
 t = transcribe("media/testVideo.mp4")
-# transcriptionToSrt(t)
+t2 = transcriptToCaptions(t)
+transcriptionToSrt(t2)
