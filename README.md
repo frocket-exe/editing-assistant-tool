@@ -5,17 +5,17 @@
 - [ ] Import a video/audio
 - [ ] Display the properties of the video
 - [x] Detect silence and add to EDL
-- [ ] Transcribe using whisperX
-- [ ] Export subtitles as SRT
-- [ ] Swear word detection (+ EDL)
-- [ ] Key word detection (+ EDL)
+- [X] Transcribe using whisperX
+- [X] Export subtitles as SRT
+- [X] Swear word detection (+ EDL)
+- [X] Key word detection (+ EDL)
 - [ ] Export media with choice of output quality
 
 ---
 
 ### Medium priority:
-- [ ] Mute swear words
-- [ ] Beep swear words
+- [X] Mute swear words
+- [X] Beep swear words
 - [ ] Burn subtitles into video
 - [ ] Normalise audio
 - [ ] Estimate file output size
