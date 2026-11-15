@@ -3,3 +3,13 @@ https://superuser.com/questions/681885/how-can-i-remove-multiple-segments-from-a
 
 Concat ffmpeg:
 https://trac.ffmpeg.org/wiki/Concatenate
+
+Generate sine:
+http://johnriselvato.com/how-to-generate-an-audio-tone-in-ffmpeg/
+
+Silence parts of video/audio:
+https://stackoverflow.com/questions/29215197/mute-specified-sections-of-an-audio-file-using-ffmpeg
+
+Combine audio tracks in a video:
+https://stackoverflow.com/questions/11779490/how-to-add-a-new-audio-not-mixing-into-a-video-using-ffmpeg
+https://ffmpeg.org/ffmpeg-filters.html#amerge
