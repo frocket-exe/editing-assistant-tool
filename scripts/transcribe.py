@@ -26,7 +26,7 @@ def splitSegment(words):
     splitSegments = [words[0:biggestGap["index"]+1], words[biggestGap["index"]+1:]]
     return splitSegments
 
-def transcriptToCaptions(segments, characterLimit=30, wordLimit=4, maxTime=2):
+def transcriptToCaptions(segments, characterLimit=30, wordLimit=4, maxTime=2, fillGaps=True):
     captions = []
     for segment in segments:
         words = segment["words"]
@@ -34,12 +34,11 @@ def transcriptToCaptions(segments, characterLimit=30, wordLimit=4, maxTime=2):
         characterCount = len(" ".join(w["word"] for w in words))
         timeCount = words[-1]["end"]-words[0]["start"]
         processedWords = []
-        processedWordCount = 0
         if (wordCount <= wordLimit and characterCount <= characterLimit and timeCount <= maxTime) or wordCount == 1:
-            captions.append(segment)
+            captions.append(segment["words"])
         else:
             subsegments = [words]
-            while processedWordCount != wordCount:
+            while subsegments != []:
                 splitSegments = splitSegment(subsegments.pop(0))
                 for segment in splitSegments:
                     wordCount = len(segment)
@@ -47,10 +46,13 @@ def transcriptToCaptions(segments, characterLimit=30, wordLimit=4, maxTime=2):
                     timeCount = segment[-1]["end"]-segment[0]["start"]
                     if (wordCount <= wordLimit and characterCount <= characterLimit and timeCount <= maxTime) or wordCount == 1:
                         processedWords.append(segment)
-                        processedWordCount += len(segment)
                     else:
                         subsegments.insert(0, segment)
             captions += processedWords
+            if fillGaps:
+                for phrase in processedWords:
+                    for i in range(len(phrase)-1):
+                        gap = phrase[i+1]['start'] - phrase[i]['end'] 
     segmentedCaptions = []
     for caption in captions:
         seg = {'start': float(caption[0]['start']), 'end': float(caption[-1]['end']), 'text': " ".join([cap["word"] for cap in caption])}
@@ -78,6 +80,6 @@ def transcriptionToSrt(transcription):
         f.write(srtText)
         f.close()
 
-t = transcribe("media/testVideo.mp4")
+t = transcribe("media/testVideo04.mp4")
 t2 = transcriptToCaptions(t)
 transcriptionToSrt(t2)
