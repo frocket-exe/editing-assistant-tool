@@ -13,3 +13,6 @@ https://stackoverflow.com/questions/29215197/mute-specified-sections-of-an-audio
 Combine audio tracks in a video:
 https://stackoverflow.com/questions/11779490/how-to-add-a-new-audio-not-mixing-into-a-video-using-ffmpeg
 https://ffmpeg.org/ffmpeg-filters.html#amerge
+
+Use regex to clean up text
+https://www.codecademy.com/article/remove-characters-from-a-python-string
