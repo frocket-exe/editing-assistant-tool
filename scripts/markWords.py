@@ -40,7 +40,8 @@ def tcToTs(timecode):
 
 with open(inputFilePath) as f:
     file = f.read()
-    captions = (file.split("\n\n"))[:-1]
+    captions = (file.split("\n\n"))
+    captions = [x for x in captions if x != '']
 
 for caption in captions:
     parts = caption.split("\n")
