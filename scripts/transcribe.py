@@ -26,7 +26,7 @@ def splitSegment(words):
     splitSegments = [words[0:biggestGap["index"]+1], words[biggestGap["index"]+1:]]
     return splitSegments
 
-def transcriptToCaptions(segments, characterLimit=30, wordLimit=4, maxTime=2, fillGaps=True):
+def transcriptToCaptions(segments, characterLimit=30, wordLimit=1, maxTime=2, fillGaps=True):
     captions = []
     for segment in segments:
         words = segment["words"]

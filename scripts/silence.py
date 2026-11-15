@@ -98,7 +98,7 @@ def removeSilences(videoPath):
     cmd = ["ffmpeg", "-y", "-fflags", "+genpts", "-f", "concat", "-i", "silent_video_segments/segment_list.txt", "-c", "copy", "media/cutVideo.mp4"]
     subprocess.run(cmd)
 
-inputName = "testVideo02.mp4"
+inputName = "testVideo04.mp4"
 inputPath = "media/" + inputName
 findSilences(inputPath)
 markSilences(inputPath, minSilenceDuration=1, attack=0.1, release=0.15)
