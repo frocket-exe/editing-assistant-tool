@@ -81,7 +81,7 @@ def transcriptionToSrt(transcription):
         f.write(srtText)
         f.close()
 
-def sanitise(keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]', caseConvert="lower"):
+def sanitise(keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]', caseConvert="lower", censorWords=[]):
     with open("srt/transcription.srt", "r") as f:
         file = f.read()
         captions = (file.split("\n\n"))
@@ -90,6 +90,9 @@ def sanitise(keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]
     for caption in captions:
         content = caption.split("\n")[2]
         content = re.sub(puncToRemove, '', content)
+        for swear in censorWords:
+            if swear in content.lower():
+                content = re.sub('(?i)' + re.escape(swear), swear[:1]+("*"*(len(swear)-2))+swear[-1:], content)
         if caseConvert == "upper":
             sanitisedCaption = f"{caption.split("\n")[0]}\n{caption.split("\n")[1]}\n{content.upper()}"
         elif caseConvert == "lower":
@@ -109,7 +112,7 @@ def sanitise(keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]
 
 
 
-t = transcribe("media/testVideo04.mp4")
-t2 = transcriptToCaptions(t)
-transcriptionToSrt(t2)
+# t = transcribe("media/testVideo04.mp4")
+# t2 = transcriptToCaptions(t)
+# transcriptionToSrt(t2)
 sanitise()
