@@ -98,8 +98,46 @@ def removeSilences(videoPath):
     cmd = ["ffmpeg", "-y", "-fflags", "+genpts", "-f", "concat", "-i", "silent_video_segments/segment_list.txt", "-c", "copy", "media/cutVideo.mp4"]
     subprocess.run(cmd)
 
+
+def createVadVideo():
+    with open("json/silences.json", "r") as f:
+        data = json.load(f)
+    frameRate = data["frameRate"]
+    duration = data["duration"]
+    silences = data["silences"]
+    lowestIndex = 1
+    highestIndex = len(silences)*2
+    print(frameRate)
+    print(duration)
+    print(silences)
+    # cmd = ["ffmpeg", "-f", "lavfi", "-i", "color=c=0x4d1a7f", "-s", "1280x720", "-r", f"{frameRate}", "-c:v", "libx264", "-crf", "31", "-t", f"{duration}", "silent_video_segments/solid.mp4"]
+    for i in range(0, len(silences)):
+        silence = (silences[i])
+        index = i*2 + 1
+        cmd = ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=cc1f27", "-s", "320x180", "-r", f"{frameRate}", "-c:v", "libx264", "-crf", "31", "-t", f"{silence["duration"]}", f"silent_video_segments/solid{index:05}.mp4"]
+        subprocess.run(cmd)
+    if silences[0]["start"] != 0:
+        silences.insert(0, {"end": 0})
+        lowestIndex = 0
+    if silences[-1]["end"] != duration:
+        silences.append({"start": duration})
+        highestIndex += 1
+    for i in range(0, len(silences)-1):
+        index = (i+1)*2
+        cmd = ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=1fc224", "-s", "320x180", "-r", f"{frameRate}", "-c:v", "libx264", "-crf", "31", "-t", f"{silences[i+1]["start"] - silences[i]["end"]}", f"silent_video_segments/solid{index:05}.mp4"]
+        subprocess.run(cmd)
+    with open("silent_video_segments/solid_segment_list.txt", "w") as f:
+        for i in range(lowestIndex, highestIndex):
+            f.write(f"file 'solid{i:05}.mp4'\n")
+        f.close()
+    cmd = ["ffmpeg", "-y", "-fflags", "+genpts", "-f", "concat", "-i", "silent_video_segments/solid_segment_list.txt", "-c", "copy", "silent_video_segments/vad.mp4"]
+    subprocess.run(cmd)
+
+
 inputName = "testVideo04.mp4"
 inputPath = "media/" + inputName
-findSilences(inputPath)
-markSilences(inputPath, minSilenceDuration=1, attack=0.1, release=0.15)
-removeSilences(inputPath)
+# findSilences(inputPath)
+# markSilences(inputPath, minSilenceDuration=1, attack=0.1, release=0.15)
+# removeSilences(inputPath)
+
+createVadVideo()
