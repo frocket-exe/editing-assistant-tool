@@ -16,3 +16,9 @@ https://ffmpeg.org/ffmpeg-filters.html#amerge
 
 Use regex to clean up text
 https://www.codecademy.com/article/remove-characters-from-a-python-string
+
+PyQt Tabs:
+https://www.geeksforgeeks.org/python/pyqt5-qtabwidget/
+
+Make video of solid colour
+https://ffmpegbyexample.com/examples/6gzhzpjp/generate_solid_color_264_video_with_the_color_video_source_filter_color_hex_code/
