@@ -12,7 +12,7 @@ def getProperties(PATH):
     print(result)
 
     generalData = ["codec_name", "codec_long_name", "duration", "bit_rate"]
-    videoData = ["width", "height", "has_b_frames", "r_frame_rate"]
+    videoData = ["width", "height", "r_frame_rate"]
     audioData = ["sample_rate", "bits_per_sample", "channels"]
     metrics = {}
 
