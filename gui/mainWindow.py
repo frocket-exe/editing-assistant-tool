@@ -1,59 +1,31 @@
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QTabWidget
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QPalette, QColor
 import sys
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget, QVBoxLayout, QLabel
+from tabs.importTab import ImportTab
 
-# Creating the main window
-class App(QMainWindow):
+
+# Subclass QMainWindow to customize your application's main window
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.title = 'Editing Assistant tool'
-        self.left = 100
-        self.top = 100
-        self.width = 800
-        self.height = 600
-        self.setWindowTitle(self.title)
-        self.setGeometry(self.left, self.top, self.width, self.height)
 
-        self.tab_widget = MyTabWidget(self)
-        self.setCentralWidget(self.tab_widget)
+        self.setWindowTitle("My App")
+        self.setMinimumSize(QSize(925, 625))
 
-        self.show()
-
-# Creating tab widgets
-class MyTabWidget(QWidget):
-    def __init__(self, parent):
-        super(QWidget, self).__init__(parent)
-        self.layout = QVBoxLayout(self)
-
-        # Initialize tab screen
         self.tabs = QTabWidget()
-        self.tab1 = QWidget()
-        self.tab2 = QWidget()
-        self.tab3 = QWidget()
-        self.tab4 = QWidget()
-        self.tab5 = QWidget()
-        self.tab6 = QWidget()
-        self.tabs.resize(800, 600)
+        self.importTab = ImportTab("Import")
+        self.importTab2 = ImportTab("Export")
+        self.tabs.addTab(self.importTab, self.importTab.title)
+        self.tabs.addTab(self.importTab2, self.importTab2.title)
 
-        # Add tabs
-        self.tabs.addTab(self.tab1, "Input/Stats")
-        self.tabs.addTab(self.tab2, "Silence")
-        self.tabs.addTab(self.tab3, "Transcribe")
-        self.tabs.addTab(self.tab4, "Mark words")
-        self.tabs.addTab(self.tab5, "Error detect")
-        self.tabs.addTab(self.tab6, "Export")
+        self.setCentralWidget(self.tabs)
 
-        # Create first tab
-        self.tab1.layout = QVBoxLayout(self)
-        self.l = QLabel()
-        self.l.setText("This is the first tab")
-        self.tab1.layout.addWidget(self.l)
-        self.tab1.setLayout(self.tab1.layout)
 
-        # Add tabs to widget
-        self.layout.addWidget(self.tabs)
-        self.setLayout(self.layout)
+app = QApplication(sys.argv)
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = App()
-    sys.exit(app.exec_())
+# window = MainWindow()
+window = ImportTab("Tab 1 - Import")
+window.show()
+
+app.exec()
