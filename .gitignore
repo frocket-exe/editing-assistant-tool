@@ -7,3 +7,4 @@ srt/
 silent_video_segments/
 censor/
 *.pyc
+__pycache__/
