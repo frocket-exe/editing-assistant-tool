@@ -1,0 +1,37 @@
+/* Overall tab */
+QWidget#ImportTab {
+    background-color: #202124;
+    color: #e8eaed;
+    font-family: "Segoe UI";
+    font-size: 10pt;
+}
+
+/* Main import button */
+QPushButton#SelectVideoButton {
+    background-color: #3b82f6;
+    color: white;
+    font-size: 14pt;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    padding: 12px;
+    margin-left: 50px;
+    margin-right: 50px;
+    margin-top: 40px;
+}
+
+QPushButton#SelectVideoButton:hover {
+    background-color: #2563eb;
+}
+
+QPushButton#SelectVideoButton:pressed {
+    background-color: #1d4ed8;
+}
+
+/* Information labels */
+QLabel#VideoInfo,
+QLabel#AudioInfo {
+    background-color: #303238;
+    border-radius: 6px;
+    padding: 12px;
+}
