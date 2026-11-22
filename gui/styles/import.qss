@@ -10,7 +10,7 @@ QWidget#ImportTab {
 QPushButton#SelectVideoButton {
     background-color: #3b82f6;
     color: white;
-    font-size: 14pt;
+    font-size: 24pt;
     font-weight: bold;
     border: none;
     border-radius: 6px;
@@ -34,4 +34,30 @@ QLabel#AudioInfo {
     background-color: #303238;
     border-radius: 6px;
     padding: 12px;
+    padding-top: 14px;
+    padding-left: 16px;
+    font-size: 18pt;
+}
+
+QLabel#VideoTitle,
+QLabel#AudioTitle {
+    margin-bottom: 5px;
+    font-size: 22pt;
+    font-weight: 900;
+}
+
+QLabel#Response {
+    margin-top: 10px;
+    margin-left: 20px;
+    margin-right: 20px;
+    margin-bottom: 0px;
+    font-size: 14pt;
+}
+
+QLabel[status="success"] {
+    color: #ff2ed14a;
+}
+
+QLabel[status="error"] {
+    color: #ec4141
 }
