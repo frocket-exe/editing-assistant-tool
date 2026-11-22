@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, Q
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QPalette, QColor
 import sys
-from tabs.importTab import ImportTab
+from .tabs.importTab import ImportTab
 
 
 # Subclass QMainWindow to customize your application's main window
