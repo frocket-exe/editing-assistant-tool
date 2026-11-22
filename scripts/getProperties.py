@@ -9,12 +9,11 @@ def getProperties(PATH):
     cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", PATH]
     result = subprocess.run(cmd, capture_output=True, text=True).stdout
     result = json.loads(result)
-    print(result)
 
     generalData = ["codec_name", "codec_long_name", "duration", "bit_rate"]
     videoData = ["width", "height", "r_frame_rate"]
     audioData = ["sample_rate", "bits_per_sample", "channels"]
-    metrics = {}
+    metrics = {"path": PATH}
 
     for stream in result["streams"]:
         metrics[stream["codec_type"]] = {}
@@ -31,14 +30,3 @@ def getProperties(PATH):
     with open("json/videoMetrics.json", "w") as f:
         f.write(json_metrics)
         f.close()
-
-
-
-mediaFolder = "media/"
-
-files = os.listdir(mediaFolder)
-for file in files:
-    print(file)
-
-videoPath = mediaFolder + files[2]
-getProperties(videoPath)
