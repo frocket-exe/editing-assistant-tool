@@ -2,8 +2,8 @@
 
 ## The plan is simple...:
 ### High priority:
-- [ ] Import a video/audio
-- [ ] Display the properties of the video
+- [x] Import a video/audio
+- [x] Display the properties of the video
 - [x] Detect silence and add to EDL
 - [X] Transcribe using whisperX
 - [X] Export subtitles as SRT
