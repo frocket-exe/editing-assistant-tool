@@ -8,3 +8,5 @@ silent_video_segments/
 censor/
 *.pyc
 __pycache__/
+gui/thumbnails/
+.VSCodeCounter/
