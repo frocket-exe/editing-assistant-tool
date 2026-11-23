@@ -140,10 +140,16 @@ def silencesToTimeline():
     timeline = []
     duration = data["duration"]
     silences = data["silences"]
-    silences.append({"start": duration})
-    if silences[0]["start"] != 0:
-        timeline.append({"colour": "green", "size":(round(silences[0]["start"]/duration, 2))})
-    for i in range(0, len(silences)-1):
-        timeline.append({"colour": "red", "size":round(silences[i]["duration"]/duration, 2)})
-        timeline.append({"colour": "green", "size": round((silences[i+1]["start"]-silences[i]["end"])/duration, 2)})
+    for silence in silences:
+        timeline.append({"start": round(silence["start"]/duration, 2), "size": round(silence["duration"]/duration, 2)})
+    return(timeline)
+
+def cutsToTimeline():
+    with open("json/silencesToCut.json", "r") as f:
+        data = json.load(f)
+    timeline = []
+    duration = data["duration"]
+    silences = data["timestamps"]
+    for silence in silences:
+        timeline.append({"start": round(silence["start"]/duration, 2), "size": round((silence["end"]-silence["start"])/duration, 2)})
     return(timeline)
