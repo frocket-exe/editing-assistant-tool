@@ -1,9 +1,10 @@
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QGridLayout, QLabel, QVBoxLayout, QHBoxLayout, QSizePolicy, QFileDialog, QStackedLayout, QSlider, QLayout
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
-from PySide6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush
+from PySide6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QIcon
 from PySide6.QtCore import QSize, Qt, QRect, QUrl
 from scripts.silence import silencesToTimeline, cutsToTimeline, findSilences, createVadVideo
+from scripts.jsonToEdl import jsonToEdl
 from .tab import Tab
 from pathlib import Path
 import subprocess
@@ -76,8 +77,7 @@ class SilenceTab(Tab):
         self.vadVideo = QVideoWidget()
         self.vadPlayer = QMediaPlayer()
         self.vadPlayer.setVideoOutput(self.vadVideo)
-        self.setVadVideo()
-        self.vadPlayer.play()
+        self.vadPlayer.mediaStatusChanged.connect(self.vadMediaLoaded)
 
         self.inputVideo = QVideoWidget()
         self.inputAudio = QAudioOutput()
@@ -86,27 +86,26 @@ class SilenceTab(Tab):
         self.inputPlayer.setVideoOutput(self.inputVideo)
         self.setInputVideo()
         self.inputPlayer.playbackStateChanged.connect(self.switchThumbnail)
-        self.inputPlayer.play()
+        # self.inputPlayer.play()
 
         self.thumbnail = QLabel()
-        self.generateThumbnail("media/testVideo04.mp4", "gui/thumbnails/inputVideo.jpg")
-        self.thumbnailPixmap = (QPixmap("gui/thumbnails/inputVideo.jpg"))
-        self.thumbnail.setPixmap(self.thumbnailPixmap.scaled(self.thumbnail.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        self.generateThumbnail(self.inputVideoPath, "gui/thumbnails/inputVideo.jpg")
+        self.thumbnailPixmap = QPixmap("gui/thumbnails/inputVideo.jpg")
         self.thumbnail.setScaledContents(False)
         self.thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.thumbnail.setStyleSheet("background-color: black;")
 
         foregroundContainer = QWidget()
-        foregroundLayout = QVBoxLayout(foregroundContainer)
+        self.foregroundLayout = QVBoxLayout(foregroundContainer)
         foregroundStackContainer = QWidget()
         foregroundStack = QStackedLayout(foregroundStackContainer)
         foregroundStack.setStackingMode(QStackedLayout.StackingMode.StackAll)
-        foregroundLayout.setContentsMargins(10, 10, 10, 10)
+        self.foregroundLayout.setContentsMargins(0, 0, 0, 0)
 
         foregroundStack.addWidget(self.inputVideo)
         foregroundStack.addWidget(self.thumbnail)
         foregroundStack.setCurrentWidget(self.thumbnail)
-        foregroundLayout.addWidget(foregroundStackContainer)
+        self.foregroundLayout.addWidget(foregroundStackContainer)
         vadStackContainer = QWidget()
         vadStack = QStackedLayout(vadStackContainer)
         vadStack.setStackingMode(QStackedLayout.StackingMode.StackAll)
@@ -123,14 +122,24 @@ class SilenceTab(Tab):
         inputLabel = QLabel("Input Video: ")
         detectButton = QPushButton("Detect Silence")
         detectButton.clicked.connect(self.detectSilences)
-        expEdlButton = QPushButton("Export EDL")
+
+        navigationContainer = QWidget()
+        navigation = QHBoxLayout(navigationContainer)
+        playButton = QPushButton()
+        playButton.setIcon(QIcon(QPixmap("gui/icons/play.png")))
+        pauseButton = QPushButton()
+        pauseButton.setIcon(QIcon(QPixmap("gui/icons/pause.png")))
+        videoProgress = QSlider(Qt.Orientation.Horizontal)
+        navigation.addWidget(playButton)
+        navigation.addWidget(pauseButton)
+        navigation.addWidget(videoProgress)
 
         inputContainer = QWidget()
         inputLayout = QVBoxLayout(inputContainer)
         inputLayout.addWidget(inputLabel)
         inputLayout.addWidget(vadAspectContainer, 1)
+        inputLayout.addWidget(navigationContainer)
         inputLayout.addWidget(detectButton)
-        inputLayout.addWidget(expEdlButton)
 
         attackContainer = QWidget()
         attackLayout = QHBoxLayout(attackContainer)
@@ -151,6 +160,8 @@ class SilenceTab(Tab):
         minSilenceLayout.addWidget(minSilenceLabel)
         minSilenceLayout.addWidget(minSilenceSlider)
         cutButton = QPushButton("Cut Video")
+        expEdlButton = QPushButton("Export EDL")
+        expEdlButton.clicked.connect(self.exportEdl)
 
         outputLabel = QLabel("Cut video:")
         self.cutVideo = QVideoWidget()
@@ -173,6 +184,7 @@ class SilenceTab(Tab):
         controls.addWidget(releaseContainer)
         controls.addWidget(minSilenceContainer)
         controls.addWidget(cutButton)
+        controls.addWidget(expEdlButton)
         controls.addWidget(outputLabel)
         controls.addWidget(outputContainer)
         controls.addWidget(showVidButton)
@@ -204,15 +216,31 @@ class SilenceTab(Tab):
 
         # self.drawTimeline()
         self.drawCuts()
+        self.switchThumbnail(self.inputPlayer.playbackState())
 
         stylePath = Path(__file__).resolve().parent.parent / "styles" / "silence.qss"
         with open(stylePath, "r") as f:
             self.setStyleSheet(f.read())
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.thumbnail.setPixmap(self.thumbnailPixmap.scaled(self.thumbnail.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+
+    def exportEdl(self):
+        fileName = QFileDialog.getSaveFileName(self, "Choose location", "edl/silences.edl", "EDL (*.edl)")[0]
+        jsonToEdl("json/silencesToCut.json", fileName)
+
+    def vadMediaLoaded(self, status):
+        if status == QMediaPlayer.MediaStatus.LoadedMedia:
+            self.vadPlayer.setPosition(self.inputPlayer.position())
+            self.vadPlayer.play()
+
     def detectSilences(self):
         findSilences(self.inputVideoPath)
         createVadVideo()
         self.drawTimeline()
+        self.setVadVideo()
+        self.foregroundLayout.setContentsMargins(10, 10, 10, 10)
 
     def switchThumbnail(self, state):
         if state == QMediaPlayer.PlaybackState.PlayingState:
