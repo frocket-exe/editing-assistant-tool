@@ -7,20 +7,17 @@ def secsToTimestamp(secs, frameRate):
     frames = round((secs % 1)*frameRate)
     return(f"{str(int(hours)).zfill(2)}:{str(int(mins)).zfill(2)}:{str(int(secsRem)).zfill(2)}:{str(int(frames)).zfill(2)}")
 
+def jsonToEdl(path, outputPath):
+    with open(path, "r") as f:
+        data = json.load(f)
 
-path = "json/silencesToCut.json"
-outputPath = "edl/silencesToCut.edl"
+    edlText = f"TITLE: {data["title"]}\nFCM: NON-DROP FRAME\n"
+    markers = data["timestamps"]
 
-with open(path, "r") as f:
-    data = json.load(f)
+    for i, marker in enumerate(markers):
+        edlEntry = f"\n{str(i+1).zfill(3)}  001      V     C        {secsToTimestamp(marker["start"], data["frameRate"])} {secsToTimestamp(marker["end"], data["frameRate"])} {secsToTimestamp(marker["start"], data["frameRate"])} {secsToTimestamp(marker["end"], data["frameRate"])}\n |C:ResolveColor{data["colour"]} |M:{marker["note"]} |D:{round((marker["end"]-marker["start"])*data["frameRate"])}"
+        edlText += edlEntry
 
-edlText = f"TITLE: {data["title"]}\nFCM: NON-DROP FRAME\n"
-markers = data["timestamps"]
-
-for i, marker in enumerate(markers):
-    edlEntry = f"\n{str(i+1).zfill(3)}  001      V     C        {secsToTimestamp(marker["start"], data["frameRate"])} {secsToTimestamp(marker["end"], data["frameRate"])} {secsToTimestamp(marker["start"], data["frameRate"])} {secsToTimestamp(marker["end"], data["frameRate"])}\n |C:ResolveColor{data["colour"]} |M:{marker["note"]} |D:{round((marker["end"]-marker["start"])*data["frameRate"])}"
-    edlText += edlEntry
-
-with open(outputPath, "w") as f:
-    f.write(edlText)
-    f.close()
+    with open(outputPath, "w") as f:
+        f.write(edlText)
+        f.close()
