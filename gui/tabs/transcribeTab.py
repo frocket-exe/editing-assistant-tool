@@ -17,18 +17,22 @@ from PySide6.QtWidgets import (
     QListWidgetItem, 
     QListView,
     QFrame,
-    QToolButton
+    QToolButton,
+    QCheckBox,
+    QMessageBox
     )
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QIcon
-from PySide6.QtCore import QSize, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QSize, Qt, QTimer, Signal, Slot, QUrl
 from pathlib import Path
 import sys
 from .tab import Tab, AspectRatioLayout, milliToTimecode
 from .flowLayout import FlowLayout
 from scripts.transcribe import transcribe, transcriptionToSrt, transcriptToCaptions, sanitise
 import json
+import subprocess
+import os
 
 
 class TagChip(QFrame):
@@ -140,13 +144,13 @@ class TranscribeTab(Tab):
         navigation = QHBoxLayout(navigationContainer)
         playButton = QPushButton()
         playButton.setIcon(QIcon(QPixmap("gui/icons/play.png")))
-        # playButton.clicked.connect(self.playInput)
+        playButton.clicked.connect(self.playInput)
         pauseButton = QPushButton()
         pauseButton.setIcon(QIcon(QPixmap("gui/icons/pause.png")))
-        # pauseButton.clicked.connect(self.pauseInput)
+        pauseButton.clicked.connect(self.pauseInput)
         self.videoProgress = QSlider(Qt.Orientation.Horizontal)
-        # self.videoProgress.sliderPressed.connect(self.inputSliderPressed)
-        # self.videoProgress.sliderReleased.connect(self.inputSliderReleased)
+        self.videoProgress.sliderPressed.connect(self.pauseInput)
+        self.videoProgress.sliderReleased.connect(self.inputSliderReleased)
         self.videoProgressLabel = QLabel()
         navigation.addWidget(playButton)
         navigation.addWidget(pauseButton)
@@ -154,34 +158,56 @@ class TranscribeTab(Tab):
         navigation.addWidget(self.videoProgressLabel)
 
         transcribeButton = QPushButton("Transcribe")
-        maxWordsContainer = QWidget()
-        maxWordsLayout = QHBoxLayout(maxWordsContainer)
-        maxWords = QSlider(Qt.Orientation.Horizontal)
-        maxWordsLabel = QLabel("0")
-        maxWordsLayout.addWidget(maxWords)
-        maxWordsLayout.addWidget(maxWordsLabel)
-        maxCharactersContainer = QWidget()
-        maxCharactersLayout = QHBoxLayout(maxCharactersContainer)
-        maxCharacters = QSlider(Qt.Orientation.Horizontal)
-        maxCharactersLabel = QLabel("0")
-        maxCharactersLayout.addWidget(maxCharacters)
-        maxCharactersLayout.addWidget(maxCharactersLabel)
-        maxDurationContainer = QWidget()
-        maxDurationLayout = QHBoxLayout(maxDurationContainer)
-        maxDuration = QSlider(Qt.Orientation.Horizontal)
-        maxDurationLabel = QLabel("0")
-        maxDurationLayout.addWidget(maxDuration)
-        maxDurationLayout.addWidget(maxDurationLabel)
+        transcribeButton.clicked.connect(self.transcribeButtonFunction)
+        self.maxWordsTitle = QLabel("Max words per caption:")
+        self.maxWordsContainer = QWidget()
+        self.maxWordsLayout = QHBoxLayout(self.maxWordsContainer)
+        self.maxWords = QSlider(Qt.Orientation.Horizontal)
+        self.maxWords.setRange(1, 12)
+        self.maxWordsLabel = QLabel("1")
+        self.maxWords.valueChanged.connect(lambda: self.changeSliderLabel(self.maxWords, self.maxWordsLabel))
+        self.maxWordsLayout.addWidget(self.maxWords)
+        self.maxWordsLayout.addWidget(self.maxWordsLabel)
+        self.maxCharactersTitle = QLabel("Max characters per caption:")
+        self.maxCharactersContainer = QWidget()
+        self.maxCharactersLayout = QHBoxLayout(self.maxCharactersContainer)
+        self.maxCharacters = QSlider(Qt.Orientation.Horizontal)
+        self.maxCharacters.setRange(1, 50)
+        self.maxCharactersLabel = QLabel("1")
+        self.maxCharacters.valueChanged.connect(lambda: self.changeSliderLabel(self.maxCharacters, self.maxCharactersLabel))
+        self.maxCharactersLayout.addWidget(self.maxCharacters)
+        self.maxCharactersLayout.addWidget(self.maxCharactersLabel)
+        self.maxDurationTitle = QLabel("Max duration of each caption (s):")
+        self.maxDurationContainer = QWidget()
+        self.maxDurationLayout = QHBoxLayout(self.maxDurationContainer)
+        self.maxDuration = QSlider(Qt.Orientation.Horizontal)
+        self.maxDuration.setRange(1, 100)
+        self.maxDurationLabel = QLabel("0.1")
+        self.maxDuration.valueChanged.connect(lambda: self.changeSliderLabel(self.maxDuration, self.maxDurationLabel, 10))
+        self.maxDurationLayout.addWidget(self.maxDuration)
+        self.maxDurationLayout.addWidget(self.maxDurationLabel)
+        fillGapsContainer = QWidget()
+        fillGapsLayout = QHBoxLayout(fillGapsContainer)
+        fillGapsLabel = QLabel("Fill gaps")
+        self.fillGaps = QCheckBox()
+        fillGapsLayout.addWidget(fillGapsLabel)
+        fillGapsLayout.addWidget(self.fillGaps)
+        fillGapsLayout.addStretch()
         createSubsButton = QPushButton("Create subtitles")
+        createSubsButton.clicked.connect(self.generateCaptions)
 
         westSideContainer = QWidget()
         westSide = QVBoxLayout(westSideContainer)
         westSide.addWidget(inputAspectContainer)
         westSide.addWidget(navigationContainer)
         westSide.addWidget(transcribeButton)
-        westSide.addWidget(maxWordsContainer)
-        westSide.addWidget(maxCharactersContainer)
-        westSide.addWidget(maxDurationContainer)
+        westSide.addWidget(self.maxWordsTitle)
+        westSide.addWidget(self.maxWordsContainer)
+        westSide.addWidget(self.maxCharactersTitle)
+        westSide.addWidget(self.maxCharactersContainer)
+        westSide.addWidget(self.maxDurationTitle)
+        westSide.addWidget(self.maxDurationContainer)
+        westSide.addWidget(fillGapsContainer)
         westSide.addWidget(createSubsButton)
 
         self.subVideo = QVideoWidget()
@@ -189,7 +215,8 @@ class TranscribeTab(Tab):
         self.subPlayer = QMediaPlayer()
         self.subPlayer.setAudioOutput(self.subAudio)
         self.subPlayer.setVideoOutput(self.subVideo)
-        # self.subPlayer.positionChanged.connect(self.updateSubVideoNav)
+        self.subPlayer.positionChanged.connect(self.updateSubVideoNav)
+        self.subPlayer.mediaStatusChanged.connect(self.subMediaLoaded)
         
         subAspectContainer = QWidget()
         subAspectContainer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -200,13 +227,13 @@ class TranscribeTab(Tab):
         subNavigation = QHBoxLayout(subNavigationContainer)
         subPlayButton = QPushButton()
         subPlayButton.setIcon(QIcon(QPixmap("gui/icons/play.png")))
-        # subPlayButton.clicked.connect(self.playSub)
+        subPlayButton.clicked.connect(self.playSub)
         subPauseButton = QPushButton()
         subPauseButton.setIcon(QIcon(QPixmap("gui/icons/pause.png")))
-        # subPauseButton.clicked.connect(self.pauseSub)
+        subPauseButton.clicked.connect(self.pauseSub)
         self.subVideoProgress = QSlider(Qt.Orientation.Horizontal)
-        # self.subVideoProgress.sliderPressed.connect(self.subSliderPressed)
-        # self.subVideoProgress.sliderReleased.connect(self.subSliderReleased)
+        self.subVideoProgress.sliderPressed.connect(self.pauseSub)
+        self.subVideoProgress.sliderReleased.connect(self.subSliderReleased)
         self.subVideoProgressLabel = QLabel()
         subNavigation.addWidget(subPlayButton)
         subNavigation.addWidget(subPauseButton)
@@ -236,7 +263,9 @@ class TranscribeTab(Tab):
         cenLabel = QLabel("Words to censor: ")
         self.censor = TagBar(placeholder="Enter words to censor...", complete=["fuck", "shit"])
         sanitiseButton = QPushButton("Sanitise captions")
+        sanitiseButton.clicked.connect(self.sanitiseCaptions)
         burnButton = QPushButton("Add subtitles to video")
+        burnButton.clicked.connect(self.burnCaptions)
 
 
         eastSideContainer = QWidget()
@@ -262,9 +291,89 @@ class TranscribeTab(Tab):
 
         QTimer.singleShot(0, self.setInitialValues)
 
+    def playSub(self):
+        self.subPlayer.play()
+
+    def pauseSub(self):
+        self.subPlayer.pause()
+
+    def updateSubVideoNav(self):
+        self.subVideoProgress.setValue(self.subPlayer.position())
+        self.subVideoProgressLabel.setText(f"{milliToTimecode(self.subPlayer.position())}/{milliToTimecode(self.subPlayer.duration())}")
+
+    def subSliderReleased(self):
+        self.subPlayer.setPosition(self.subVideoProgress.value())
+        self.subPlayer.play()
+
+    def burnCaptions(self):
+        inputFile = QFileDialog.getOpenFileName(self, "Open File", "srt/sanitised.srt", f"SRT (*.srt)")[0]
+        subtitlePath = os.path.abspath(inputFile).replace("\\", "/")
+        subtitlePath = subtitlePath.replace(":", r"\:")
+        subtitlePath = subtitlePath.replace("'", r"\'")
+        self.subVideoPath = QFileDialog.getSaveFileName(self, "Choose location", "media/subtitledVid.mp4", "MP4 (*.mp4)")[0]
+        cmd = ["ffmpeg", "-y", "-i", self.inputVideoPath, "-vf", f"subtitles='{subtitlePath}'", self.subVideoPath]
+        subprocess.run(cmd)
+        self.subPlayer.setSource(QUrl.fromLocalFile(self.subVideoPath))
+        self.subPlayer.pause()
+        self.subVideoProgress.setRange(0, self.subPlayer.duration())
+
+    def subMediaLoaded(self, status):
+        if status == QMediaPlayer.MediaStatus.LoadedMedia:
+            self.subVideoProgress.setRange(0, self.subPlayer.duration())
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.subPlayer.pause()
+
+    def sanitiseCaptions(self):
+        inputFile = QFileDialog.getOpenFileName(self, "Open File", "srt/", f"SRT (*.srt)")[0]
+        fileExists = (inputFile != '')
+        if fileExists:
+            outputFile = QFileDialog.getSaveFileName(self, "Choose location", "srt/sanitised.srt", "SRT (*.srt)")[0]
+            case = self.caseConv.currentText()
+            caseConvert = {"None":"None", "UPPERCASE": "upper", "lowercase": "lower"}.get(case)
+            keepCaps = list(self.keepCap.tags)
+            puncToRemoveList = [self.puncList.item(i).text() for i in range(self.puncList.count()) if self.puncList.item(i).checkState() == Qt.CheckState.Checked]
+            puncToRemove = f'[{"".join(puncToRemoveList)}]'
+            censorWords = list(self.censor.tags)
+            sanitise(inputFile, outputFile, keepCaps, puncToRemove, caseConvert, censorWords)
+
+    def generateCaptions(self):
+        if self.transcription == None:
+            msgBox = QMessageBox()
+            msgBox.setText("No transcription to make captions from.")
+            msgBox.exec()
+        else:
+            maxWords = (self.maxWords.value())
+            maxCharac = (self.maxCharacters.value())
+            maxDur = (self.maxDuration.value()/10)
+            fillGaps = (self.fillGaps.isChecked())
+            self.captions = transcriptToCaptions(self.transcription, maxCharac, maxWords, maxDur, fillGaps)
+            fileName = QFileDialog.getSaveFileName(self, "Choose location", "srt/captions.srt", "SRT (*.srt)")[0]
+            transcriptionToSrt(self.captions, fileName)
+
+    def transcribeButtonFunction(self):
+        self.transcription = transcribe(self.inputVideoPath)
+        fileName = QFileDialog.getSaveFileName(self, "Choose location", "srt/transcription.srt", "SRT (*.srt)")[0]
+        transcriptionToSrt(self.transcription, fileName)
+
+    def playInput(self):
+        self.inputPlayer.play()
+
+    def pauseInput(self):
+        self.inputPlayer.pause()
+
     def setInitialValues(self):
+        self.videoProgress.setRange(0, self.inputPlayer.duration())
         self.videoProgressLabel.setText("00:00/00:00")
         self.subVideoProgressLabel.setText("00:00/00:00")
+        self.transcription = None
 
     def updateInputVideoNav(self):
-        pass
+        self.videoProgress.setValue(self.inputPlayer.position())
+        self.videoProgressLabel.setText(f"{milliToTimecode(self.inputPlayer.position())}/{milliToTimecode(self.inputPlayer.duration())}")
+
+    def inputSliderReleased(self):
+        self.inputPlayer.setPosition(self.videoProgress.value())
+        self.inputPlayer.play()
+
+    def changeSliderLabel(self, slider, label, div=1):
+        label.setText(str(slider.value()/div))
