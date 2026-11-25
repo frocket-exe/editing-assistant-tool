@@ -16,6 +16,7 @@ def transcribe(filePath):
     print("Aligning....")
     align_model, metadata = whisperx.load_align_model(language_code = transcription["language"], device=device)
     result = whisperx.align(transcription["segments"], align_model, metadata, audio, device, return_char_alignments=False)
+    print("Finished alignment")
     return result["segments"]
 
 def splitSegment(words):
@@ -71,18 +72,19 @@ def secondsToTimecode(seconds):
     return(f"{hours:02}:{mins:02}:{secs:02},{milliseconds:03}")
 
 # Converts a transcription from the model into an srt file to be used for subtitles
-def transcriptionToSrt(transcription):
+def transcriptionToSrt(transcription, savePath):
     srtText = ""
     for i, segment in enumerate(transcription):
         srtText += f"{i+1}\n"
         srtText += f"{secondsToTimecode(segment["start"])} --> {secondsToTimecode(segment["end"])}\n"
         srtText += f"{segment["text"]}\n\n"
-    with open("srt/transcription.srt", "w") as f:
+    with open(savePath, "w") as f:
         f.write(srtText)
         f.close()
 
-def sanitise(keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]', caseConvert="lower", censorWords=[]):
-    with open("srt/transcription.srt", "r") as f:
+def sanitise(inputPath, outputPath, keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]', caseConvert="lower", censorWords=[]):
+    keepCap = [i.capitalize() for i in keepCap]
+    with open(inputPath, "r") as f:
         file = f.read()
         captions = (file.split("\n\n"))
         captions = [x for x in captions if x != '']
@@ -107,6 +109,6 @@ def sanitise(keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]
         else:
             sanitisedCaption = f"{caption.split("\n")[0]}\n{caption.split("\n")[1]}\n{content}"
         sanitisedCaptions += sanitisedCaption + "\n\n"
-    with open("srt/transcription_sanitised.srt", "w") as f:
+    with open(outputPath, "w") as f:
         f.write(sanitisedCaptions[:-2])
         f.close()
