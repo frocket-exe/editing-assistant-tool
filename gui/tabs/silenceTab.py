@@ -5,7 +5,7 @@ from PySide6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QIcon
 from PySide6.QtCore import QSize, Qt, QRect, QUrl, QTimer
 from scripts.silence import silencesToTimeline, cutsToTimeline, findSilences, createVadVideo, markSilences, removeSilences
 from scripts.jsonToEdl import jsonToEdl
-from .tab import Tab
+from .tab import Tab, AspectRatioLayout, milliToTimecode
 from pathlib import Path
 import subprocess
 import json
@@ -13,66 +13,6 @@ import os
 
 
 # from PySide6.QtWidgets import QLayout, QWidgetItem
-
-def milliToTimecode(mills):
-    minutes = int(mills/60000)
-    seconds = int(mills/1000) - minutes*60
-    return(f"{minutes:02}:{seconds:02}")
-
-class AspectRatioLayout(QLayout):
-    def __init__(self, aspectRatio=16/9, parent=None):
-        super().__init__(parent)
-        self.aspectRatio = aspectRatio
-        self.item = None
-
-    def addItem(self, item):
-        self.item = item
-
-    def count(self):
-        return 1 if self.item is not None else 0
-
-    def itemAt(self, index):
-        if index == 0:
-            return self.item
-        return None
-
-    def takeAt(self, index):
-        if index == 0:
-            item = self.item
-            self.item = None
-            return item
-        return None
-
-    def setGeometry(self, rect):
-        super().setGeometry(rect)
-
-        if self.item is None:
-            return
-
-        width = rect.width()
-        height = rect.height()
-
-        # Calculate the largest rectangle that fits
-        if width / height > self.aspectRatio:
-            width = int(height * self.aspectRatio)
-        else:
-            height = int(width / self.aspectRatio)
-
-        # Centre the child inside the available space
-        x = rect.x() + (rect.width() - width) // 2
-        y = rect.y() + (rect.height() - height) // 2
-
-        self.item.setGeometry(QRect(x, y, width, height))
-
-    def sizeHint(self):
-        width = 520
-        return QSize(width, int(width / self.aspectRatio))
-
-    def minimumSize(self):
-        return QSize(0, 0)
-
-    def expandingDirections(self):
-        return Qt.Orientation.Horizontal | Qt.Orientation.Vertical
 
 
 class SilenceTab(Tab):
@@ -84,12 +24,6 @@ class SilenceTab(Tab):
         self.vadPlayer.setVideoOutput(self.vadVideo)
         self.vadPlayer.mediaStatusChanged.connect(self.vadMediaLoaded)
 
-        self.inputVideo = QVideoWidget()
-        self.inputAudio = QAudioOutput()
-        self.inputPlayer = QMediaPlayer()
-        self.inputPlayer.setAudioOutput(self.inputAudio)
-        self.inputPlayer.setVideoOutput(self.inputVideo)
-        self.setInputVideo()
         self.inputPlayer.playbackStateChanged.connect(self.switchThumbnail)
         self.inputPlayer.positionChanged.connect(self.updateInputVideoNav)
         # self.inputPlayer.play()
@@ -276,7 +210,7 @@ class SilenceTab(Tab):
 
         self.switchThumbnail(self.inputPlayer.playbackState())
         QTimer.singleShot(0, self.resizeThumbnail)
-        QTimer.singleShot(0, self.setInitalValues)
+        QTimer.singleShot(0, self.setInitialValues)
 
         stylePath = Path(__file__).resolve().parent.parent / "styles" / "silence.qss"
         with open(stylePath, "r") as f:
@@ -342,7 +276,7 @@ class SilenceTab(Tab):
     def changeSliderLabel(self, slider, label):
         label.setText(str(slider.value()/100))
 
-    def setInitalValues(self):
+    def setInitialValues(self):
         self.videoProgress.setRange(0, self.inputPlayer.duration())
         self.videoProgressLabel.setText(f"00:00/{milliToTimecode(self.inputPlayer.duration())}")
         self.silenceMarker.move(int(0-(self.canvasWidth/2)), 0)
@@ -411,12 +345,6 @@ class SilenceTab(Tab):
     def generateThumbnail(self, pathIn, pathOut):
         cmd = ["ffmpeg", "-y", "-i", pathIn, "-frames:v", "1", pathOut]
         subprocess.run(cmd)
-
-    def setInputVideo(self):
-        with open("json/videoMetrics.json", "r") as f:
-            data = json.load(f)
-        self.inputVideoPath = data["path"]
-        self.inputPlayer.setSource(QUrl.fromLocalFile(self.inputVideoPath))
 
     def setVadVideo(self):
         vadVideoPath = "silent_video_segments/vad.mp4"
