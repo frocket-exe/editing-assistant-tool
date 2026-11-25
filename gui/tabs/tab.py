@@ -25,6 +25,7 @@ class Tab(QWidget):
             data = json.load(f)
         self.inputVideoPath = data["path"]
         self.inputPlayer.setSource(QUrl.fromLocalFile(self.inputVideoPath))
+        self.inputPlayer.pause()
 
 
 def milliToTimecode(mills):
