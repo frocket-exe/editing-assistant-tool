@@ -109,10 +109,3 @@ def sanitise(keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]
     with open("srt/transcription_sanitised.srt", "w") as f:
         f.write(sanitisedCaptions[:-2])
         f.close()
-
-
-
-# t = transcribe("media/testVideo04.mp4")
-# t2 = transcriptToCaptions(t)
-# transcriptionToSrt(t2)
-sanitise()
