@@ -91,6 +91,7 @@ def sanitise(keepCap=["I", "I'm", "I've", "I'd", "I'll"], puncToRemove=r'[.!",;]
         content = caption.split("\n")[2]
         content = re.sub(puncToRemove, '', content)
         for swear in censorWords:
+            swear = swear.lower()
             if swear in content.lower():
                 content = re.sub('(?i)' + re.escape(swear), swear[:1]+("*"*(len(swear)-2))+swear[-1:], content)
         if caseConvert == "upper":
