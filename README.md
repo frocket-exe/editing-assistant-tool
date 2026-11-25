@@ -16,7 +16,7 @@
 ### Medium priority:
 - [X] Mute swear words
 - [X] Beep swear words
-- [ ] Burn subtitles into video
+- [X] Burn subtitles into video
 - [ ] Normalise audio
 - [ ] Estimate file output size
 - [ ] Detect black frames
