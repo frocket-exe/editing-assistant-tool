@@ -1,9 +1,9 @@
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QGridLayout, QLabel, QVBoxLayout, QHBoxLayout, QSizePolicy, QFileDialog, QStackedLayout, QSlider, QLayout
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QGridLayout, QLabel, QVBoxLayout, QHBoxLayout, QSizePolicy, QFileDialog, QStackedLayout, QSlider, QLayout, QMessageBox
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QIcon
-from PySide6.QtCore import QSize, Qt, QRect, QUrl
-from scripts.silence import silencesToTimeline, cutsToTimeline, findSilences, createVadVideo
+from PySide6.QtCore import QSize, Qt, QRect, QUrl, QTimer
+from scripts.silence import silencesToTimeline, cutsToTimeline, findSilences, createVadVideo, markSilences, removeSilences
 from scripts.jsonToEdl import jsonToEdl
 from .tab import Tab
 from pathlib import Path
@@ -13,6 +13,11 @@ import os
 
 
 # from PySide6.QtWidgets import QLayout, QWidgetItem
+
+def milliToTimecode(mills):
+    minutes = int(mills/60000)
+    seconds = int(mills/1000) - minutes*60
+    return(f"{minutes:02}:{seconds:02}")
 
 class AspectRatioLayout(QLayout):
     def __init__(self, aspectRatio=16/9, parent=None):
@@ -86,6 +91,7 @@ class SilenceTab(Tab):
         self.inputPlayer.setVideoOutput(self.inputVideo)
         self.setInputVideo()
         self.inputPlayer.playbackStateChanged.connect(self.switchThumbnail)
+        self.inputPlayer.positionChanged.connect(self.updateInputVideoNav)
         # self.inputPlayer.play()
 
         self.thumbnail = QLabel()
@@ -127,12 +133,18 @@ class SilenceTab(Tab):
         navigation = QHBoxLayout(navigationContainer)
         playButton = QPushButton()
         playButton.setIcon(QIcon(QPixmap("gui/icons/play.png")))
+        playButton.clicked.connect(self.playInput)
         pauseButton = QPushButton()
         pauseButton.setIcon(QIcon(QPixmap("gui/icons/pause.png")))
-        videoProgress = QSlider(Qt.Orientation.Horizontal)
+        pauseButton.clicked.connect(self.pauseInput)
+        self.videoProgress = QSlider(Qt.Orientation.Horizontal)
+        self.videoProgress.sliderPressed.connect(self.inputSliderPressed)
+        self.videoProgress.sliderReleased.connect(self.inputSliderReleased)
+        self.videoProgressLabel = QLabel()
         navigation.addWidget(playButton)
         navigation.addWidget(pauseButton)
-        navigation.addWidget(videoProgress)
+        navigation.addWidget(self.videoProgress)
+        navigation.addWidget(self.videoProgressLabel)
 
         inputContainer = QWidget()
         inputLayout = QVBoxLayout(inputContainer)
@@ -144,24 +156,38 @@ class SilenceTab(Tab):
         attackContainer = QWidget()
         attackLayout = QHBoxLayout(attackContainer)
         attackLabel = QLabel("Attack time:")
-        attackSlider = QSlider(Qt.Orientation.Horizontal)
+        self.attackSlider = QSlider(Qt.Orientation.Horizontal)
+        self.attackSlider.setRange(0, 100)
+        attackValue = QLabel("0")
+        self.attackSlider.valueChanged.connect(lambda: self.changeSliderLabel(self.attackSlider, attackValue))
         attackLayout.addWidget(attackLabel)
-        attackLayout.addWidget(attackSlider)
+        attackLayout.addWidget(self.attackSlider)
+        attackLayout.addWidget(attackValue)
         releaseContainer = QWidget()
         releaseLayout = QHBoxLayout(releaseContainer)
         releaseLabel = QLabel("Release time:")
-        releaseSlider = QSlider(Qt.Orientation.Horizontal)
+        self.releaseSlider = QSlider(Qt.Orientation.Horizontal)
+        self.releaseSlider.setRange(0, 100)
+        releaseValue = QLabel("0")
+        self.releaseSlider.valueChanged.connect(lambda: self.changeSliderLabel(self.releaseSlider, releaseValue))
         releaseLayout.addWidget(releaseLabel)
-        releaseLayout.addWidget(releaseSlider)
+        releaseLayout.addWidget(self.releaseSlider)
+        releaseLayout.addWidget(releaseValue)
         minSilenceContainer = QWidget()
         minSilenceLayout = QHBoxLayout(minSilenceContainer)
         minSilenceLabel = QLabel("Min silence to cut:")
-        minSilenceSlider = QSlider(Qt.Orientation.Horizontal)
+        self.minSilenceSlider = QSlider(Qt.Orientation.Horizontal)
+        self.minSilenceSlider.setRange(0, 500)
+        minSilenceValue = QLabel("0")
+        self.minSilenceSlider.valueChanged.connect(lambda: self.changeSliderLabel(self.minSilenceSlider, minSilenceValue))
         minSilenceLayout.addWidget(minSilenceLabel)
-        minSilenceLayout.addWidget(minSilenceSlider)
-        cutButton = QPushButton("Cut Video")
-        expEdlButton = QPushButton("Export EDL")
-        expEdlButton.clicked.connect(self.exportEdl)
+        minSilenceLayout.addWidget(self.minSilenceSlider)
+        minSilenceLayout.addWidget(minSilenceValue)
+        self.cutButton = QPushButton("Cut Video")
+        self.cutButton.clicked.connect(self.warnNoSilencesDetected)
+        self.expEdlButton = QPushButton("Export EDL")
+        self.expEdlButton.clicked.connect(self.warnNoCutsMade)
+        # self.expEdlButton.clicked.connect(self.exportEdl)
 
         outputLabel = QLabel("Cut video:")
         self.cutVideo = QVideoWidget()
@@ -169,9 +195,24 @@ class SilenceTab(Tab):
         self.cutPlayer = QMediaPlayer()
         self.cutPlayer.setAudioOutput(self.cutAudio)
         self.cutPlayer.setVideoOutput(self.cutVideo)
-        self.setCutVideo()
-        # self.cutPlayer.play()
-        showVidButton = QPushButton("Find video")
+        self.cutPlayer.positionChanged.connect(self.updateCutVideoNav)
+        self.cutPlayer.mediaStatusChanged.connect(self.cutMediaLoaded)
+        cutNavigationContainer = QWidget()
+        cutNavigation = QHBoxLayout(cutNavigationContainer)
+        cutPlayButton = QPushButton()
+        cutPlayButton.setIcon(QIcon(QPixmap("gui/icons/play.png")))
+        cutPlayButton.clicked.connect(self.playCut)
+        cutPauseButton = QPushButton()
+        cutPauseButton.setIcon(QIcon(QPixmap("gui/icons/pause.png")))
+        cutPauseButton.clicked.connect(self.pauseCut)
+        self.cutVideoProgress = QSlider(Qt.Orientation.Horizontal)
+        self.cutVideoProgress.sliderPressed.connect(self.pauseCut)
+        self.cutVideoProgress.sliderReleased.connect(self.cutSliderReleased)
+        self.cutVideoProgressLabel = QLabel()
+        cutNavigation.addWidget(cutPlayButton)
+        cutNavigation.addWidget(cutPauseButton)
+        cutNavigation.addWidget(self.cutVideoProgress)
+        cutNavigation.addWidget(self.cutVideoProgressLabel)
 
         outputContainer = QWidget()
         outputContainer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -183,11 +224,11 @@ class SilenceTab(Tab):
         controls.addWidget(attackContainer)
         controls.addWidget(releaseContainer)
         controls.addWidget(minSilenceContainer)
-        controls.addWidget(cutButton)
-        controls.addWidget(expEdlButton)
+        controls.addWidget(self.cutButton)
+        controls.addWidget(self.expEdlButton)
         controls.addWidget(outputLabel)
         controls.addWidget(outputContainer)
-        controls.addWidget(showVidButton)
+        controls.addWidget(cutNavigationContainer)
 
         topRowContainer = QWidget()
         topRow = QHBoxLayout(topRowContainer)
@@ -195,35 +236,146 @@ class SilenceTab(Tab):
         topRow.addWidget(controlsContainer)
         topRow.setSpacing(10)
 
-        self.labelSilences = QLabel()
-        self.labelSilences.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.labelCuts = QLabel()
-        self.labelCuts.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.canvasWidth = 850
         self.canvasHeight = 50
+        silenceStackContainer = QWidget()
+        silenceStack = QStackedLayout(silenceStackContainer)
+        self.labelSilences = QLabel()
+        self.labelSilences.setAlignment(Qt.AlignmentFlag.AlignCenter)
         canvas = QPixmap(self.canvasWidth, self.canvasHeight)
         canvas.fill(QColor("#11ba2a"))
         self.labelSilences.setPixmap(canvas)
+        self.silenceMarker = QLabel()
+        self.silenceMarker.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.silenceMarker.setPixmap(QPixmap("gui/icons/timelineMarker.png").scaled(int(self.canvasHeight/2.4), int(self.canvasHeight*1.2)))
+        silenceStack.addWidget(self.labelSilences)
+        silenceStack.addWidget(self.silenceMarker)
+        silenceStack.setCurrentWidget(self.silenceMarker)
+        silenceStack.setStackingMode(QStackedLayout.StackingMode.StackAll)
+
+        cutStackContainer = QWidget()
+        cutStack = QStackedLayout(cutStackContainer)
+        self.labelCuts = QLabel()
+        self.labelCuts.setAlignment(Qt.AlignmentFlag.AlignCenter)
         canvasCuts = QPixmap(self.canvasWidth, self.canvasHeight)
         canvasCuts.fill(QColor("#11ba2a"))
         self.labelCuts.setPixmap(canvasCuts)
+        self.cutMarker = QLabel()
+        self.cutMarker.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.cutMarker.setPixmap(QPixmap("gui/icons/timelineMarker.png").scaled(int(self.canvasHeight/2.4), int(self.canvasHeight*1.2)))
+        cutStack.addWidget(self.labelCuts)
+        cutStack.addWidget(self.cutMarker)
+        cutStack.setCurrentWidget(self.cutMarker)
+        cutStack.setStackingMode(QStackedLayout.StackingMode.StackAll)
 
         layout = QVBoxLayout()
         layout.addWidget(topRowContainer)
-        layout.addWidget(self.labelSilences)
-        layout.addWidget(self.labelCuts)
+        layout.addWidget(silenceStackContainer)
+        layout.addWidget(cutStackContainer)
         self.setLayout(layout)
 
-        # self.drawTimeline()
-        self.drawCuts()
         self.switchThumbnail(self.inputPlayer.playbackState())
+        QTimer.singleShot(0, self.resizeThumbnail)
+        QTimer.singleShot(0, self.setInitalValues)
 
         stylePath = Path(__file__).resolve().parent.parent / "styles" / "silence.qss"
         with open(stylePath, "r") as f:
             self.setStyleSheet(f.read())
 
+    def cutMediaLoaded(self, status):
+        if status == QMediaPlayer.MediaStatus.LoadedMedia:
+            self.cutVideoProgress.setRange(0, self.cutPlayer.duration())
+            self.cutVideoProgressLabel.setText(f"00:00/{milliToTimecode(self.cutPlayer.duration())}")
+            self.cutPlayer.pause()
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.cutPlayer.pause()
+
+    def updateCutVideoNav(self):
+        self.cutVideoProgress.setValue(self.cutPlayer.position())
+        self.cutVideoProgressLabel.setText(f"{milliToTimecode(self.cutPlayer.position())}/{milliToTimecode(self.cutPlayer.duration())}")
+        timelineCuts = cutsToTimeline()
+        print(timelineCuts)
+        offset = 0
+        percentThrough = (self.cutPlayer.position()/self.inputPlayer.duration())
+        for cut in timelineCuts:
+            if cut["start"] <= percentThrough+offset:
+                offset += cut["size"]
+        adjustedPercent = percentThrough + offset
+        print(percentThrough)
+        print(adjustedPercent)
+        self.cutMarker.move(int((adjustedPercent*self.canvasWidth)-self.canvasWidth/2), 0)
+
+    def playCut(self):
+        self.cutPlayer.play()
+
+    def pauseCut(self):
+        self.cutPlayer.pause()
+
+    def cutSliderReleased(self):
+        self.cutPlayer.setPosition(self.cutVideoProgress.value())
+        self.cutPlayer.play()
+
+    def warnNoSilencesDetected(self):
+        msgBox = QMessageBox()
+        msgBox.setText("You have not detected any silences yet.")
+        msgBox.exec()
+
+    def warnNoCutsMade(self):
+        msgBox = QMessageBox()
+        msgBox.setText("You have not created any cuts yet.")
+        msgBox.exec()
+
+    def cutVideoFunc(self):
+        attack = self.attackSlider.value()/100
+        release = self.releaseSlider.value()/100
+        minSilence = self.minSilenceSlider.value()/100
+        markSilences(minSilence, attack, release)
+        self.drawCuts()
+        self.expEdlButton.clicked.disconnect()
+        self.expEdlButton.clicked.connect(self.exportEdl)
+        self.videoOutputPath = QFileDialog.getSaveFileName(self, "Save cut video", "media/cutVideo.mp4", "MP4 (*.mp4)")[0]
+        fileExists = (self.videoOutputPath != '')
+        if fileExists:
+            removeSilences(self.inputVideoPath, self.videoOutputPath)
+            self.setCutVideo()
+
+    def changeSliderLabel(self, slider, label):
+        label.setText(str(slider.value()/100))
+
+    def setInitalValues(self):
+        self.videoProgress.setRange(0, self.inputPlayer.duration())
+        self.videoProgressLabel.setText(f"00:00/{milliToTimecode(self.inputPlayer.duration())}")
+        self.silenceMarker.move(int(0-(self.canvasWidth/2)), 0)
+        self.cutMarker.move(int(0-self.canvasWidth/2), 0)
+
+    def inputSliderPressed(self):
+        self.inputPlayer.pause()
+        self.vadPlayer.pause()
+
+    def inputSliderReleased(self):
+        self.inputPlayer.setPosition(self.videoProgress.value())
+        self.vadPlayer.setPosition(self.videoProgress.value())
+        self.inputPlayer.play()
+        self.vadPlayer.play()
+
+    def updateInputVideoNav(self):
+        self.videoProgress.setValue(self.inputPlayer.position())
+        self.videoProgressLabel.setText(f"{milliToTimecode(self.inputPlayer.position())}/{milliToTimecode(self.inputPlayer.duration())}")
+        self.silenceMarker.move(int(self.inputPlayer.position()/self.inputPlayer.duration()*self.canvasWidth-(self.canvasWidth/2)), 0)
+
+    def playInput(self):
+        self.inputPlayer.play()
+        self.vadPlayer.play()
+
+    def pauseInput(self):
+        self.inputPlayer.pause()
+        self.vadPlayer.pause()
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        self.resizeThumbnail()
+
+    def resizeThumbnail(self):
         self.thumbnail.setPixmap(self.thumbnailPixmap.scaled(self.thumbnail.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
 
     def exportEdl(self):
@@ -233,7 +385,8 @@ class SilenceTab(Tab):
     def vadMediaLoaded(self, status):
         if status == QMediaPlayer.MediaStatus.LoadedMedia:
             self.vadPlayer.setPosition(self.inputPlayer.position())
-            self.vadPlayer.play()
+            if self.inputPlayer.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+                self.vadPlayer.play()
 
     def detectSilences(self):
         findSilences(self.inputVideoPath)
@@ -241,6 +394,9 @@ class SilenceTab(Tab):
         self.drawTimeline()
         self.setVadVideo()
         self.foregroundLayout.setContentsMargins(10, 10, 10, 10)
+        self.silenceMarker.move(int(self.inputPlayer.position()/self.inputPlayer.duration()*self.canvasWidth-(self.canvasWidth/2)), 0)
+        self.cutButton.clicked.disconnect()
+        self.cutButton.clicked.connect(self.cutVideoFunc)
 
     def switchThumbnail(self, state):
         if state == QMediaPlayer.PlaybackState.PlayingState:
@@ -268,7 +424,7 @@ class SilenceTab(Tab):
             self.vadPlayer.setSource(QUrl.fromLocalFile(vadVideoPath))
 
     def setCutVideo(self):
-        cutVideoPath = "media/cutVideo.mp4"
+        cutVideoPath = self.videoOutputPath
         if os.path.exists(cutVideoPath):
             self.cutPlayer.setSource(QUrl.fromLocalFile(cutVideoPath))
 
@@ -292,6 +448,7 @@ class SilenceTab(Tab):
         timelineSilences = silencesToTimeline()
         timelineCuts = cutsToTimeline()
         canvas = self.labelCuts.pixmap()
+        canvas.fill(QColor("#11ba2a"))
         painter = QPainter(canvas)
         pen = QPen()
         pen.setColor(QColor("#11ba2a"))
