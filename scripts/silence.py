@@ -48,7 +48,7 @@ def findSilences(inputPath):
 
 # Marks silences which are eligible to be cut based on user defined parameters:
 # Minimum silence duration, attack and release
-def markSilences(inputPath, minSilenceDuration, attack, release):
+def markSilences(minSilenceDuration, attack, release):
     with open("json/silences.json", "r") as f:
         data = json.load(f)
     frameRate = data["frameRate"]
@@ -78,7 +78,7 @@ def markSilences(inputPath, minSilenceDuration, attack, release):
     return silences_data
 
         
-def removeSilences(videoPath):
+def removeSilences(videoPath, outputPath):
     cmd = ["ffmpeg", "-y", "-i", videoPath]
     with open("json/silencesToCut.json", "r") as f:
         silences_data = json.load(f)
@@ -95,7 +95,7 @@ def removeSilences(videoPath):
         f.write(f"file 'video_part{i:05}.mp4'\n")
     f.close()
     subprocess.run(cmd)
-    cmd = ["ffmpeg", "-y", "-fflags", "+genpts", "-f", "concat", "-i", "silent_video_segments/segment_list.txt", "-c", "copy", "media/cutVideo.mp4"]
+    cmd = ["ffmpeg", "-y", "-fflags", "+genpts", "-f", "concat", "-i", "silent_video_segments/segment_list.txt", "-c", "copy", outputPath]
     subprocess.run(cmd)
 
 
