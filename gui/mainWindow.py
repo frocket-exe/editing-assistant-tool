@@ -3,6 +3,8 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QPalette, QColor
 import sys
 from .tabs.importTab import ImportTab
+from .tabs.silenceTab import SilenceTab
+from .tabs.transcribeTab import TranscribeTab
 
 
 # Subclass QMainWindow to customize your application's main window
@@ -15,17 +17,21 @@ class MainWindow(QMainWindow):
 
         self.tabs = QTabWidget()
         self.importTab = ImportTab("Import")
-        self.importTab2 = ImportTab("Export")
+        self.silenceTab = SilenceTab("Silences")
+        self.transcribeTab = TranscribeTab("Transcribe")
         self.tabs.addTab(self.importTab, self.importTab.title)
-        self.tabs.addTab(self.importTab2, self.importTab2.title)
+        self.tabs.addTab(self.silenceTab, self.silenceTab.title)
+        self.tabs.addTab(self.transcribeTab, self.transcribeTab.title)
 
         self.setCentralWidget(self.tabs)
 
 
 app = QApplication(sys.argv)
 
-# window = MainWindow()
-window = ImportTab("Tab 1 - Import")
+window = MainWindow()
+# window = ImportTab("Import")
+# window = SilenceTab("Silences")
+# window = TranscribeTab("Transcribe")
 window.show()
 
 app.exec()
