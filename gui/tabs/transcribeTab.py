@@ -188,7 +188,7 @@ class TranscribeTab(Tab):
         self.maxDurationLayout.addWidget(self.maxDurationLabel)
         fillGapsContainer = QWidget()
         fillGapsLayout = QHBoxLayout(fillGapsContainer)
-        fillGapsLabel = QLabel("Fill gaps")
+        fillGapsLabel = QLabel("Fill gaps between subtitles ")
         self.fillGaps = QCheckBox()
         fillGapsLayout.addWidget(fillGapsLabel)
         fillGapsLayout.addWidget(self.fillGaps)
