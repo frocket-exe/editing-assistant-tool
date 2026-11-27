@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QGridLayout, QLabel, QVBoxLayout, QHBoxLayout, QSizePolicy, QFileDialog
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, Signal
 from pathlib import Path
 import sys
 from .tab import Tab
@@ -8,6 +8,8 @@ import json
 
 
 class ImportTab(Tab):
+    videoImported = Signal(str)
+
     def __init__(self, title):
         super().__init__(title)
 
@@ -69,7 +71,7 @@ class ImportTab(Tab):
 
     def openFile(self):
         allowedFileTypes = [".mp4", ".mkv", ".mov"]
-        fileName = QFileDialog.getOpenFileName(self, "Open File", "", f"Video Files ({" ".join([("*"+ext) for ext in allowedFileTypes])});; All Files (*.*)")[0]
+        fileName = QFileDialog.getOpenFileName(self, "Open File", "media/", f"Video Files ({" ".join([("*"+ext) for ext in allowedFileTypes])});; All Files (*.*)")[0]
         fileExists = (fileName != '')
         if fileExists:
             fileExt = Path(fileName).suffix
@@ -81,6 +83,7 @@ class ImportTab(Tab):
                 self.buttonResponse.style().unpolish(self.buttonResponse)
                 self.buttonResponse.style().polish(self.buttonResponse)
                 self.updateInfoLabel()
+                self.videoImported.emit(fileName)
             else:
                 self.buttonResponse.setText("This is not an allowed file type.")
                 self.buttonResponse.setProperty("status", "error")
