@@ -35,10 +35,30 @@ def tcToTs(timecode, fps):
     timestamp += f":{str(round(int(timecode[9:12])/1000*fps)).zfill(len(str(fps)))}"
     return timestamp
 
-def MarkWords(inputFilePath, outputFilePath, swears, keywords, fps):
+def markersToEdl(markers, edlFilePath, fps):
+    edlHeader = f"TITLE: Swears and keywords\nFCM: NON-DROP FRAME\n\n"
+    edlTxt = edlHeader
+
+    i = 0
+    for m in markers:
+        i += 1
+        edlTxt += f"{str(i).zfill(3)}  001      V     C        {tcToTs(m["timeIn"], fps)} {tcToTs(m["timeOut"], fps)} {tcToTs(m["timeIn"], fps)} {tcToTs(m["timeOut"], fps)}\n"
+        edlTxt += f" |C:ResolveColor{m["colour"]} |M:{m["marking"]} |D:{getDuration(m["timeIn"], m["timeOut"], fps)}\n\n"
+
+    with open(edlFilePath, "w") as f:
+            f.write(edlTxt)
+            f.close()
+
+
+
+
+
+
+def MarkWords(inputFilePath, swears, keywords):
     markingColours = {"swear": "Red", "keyword": "Yellow"}
     markedSwears = []
     markers = []
+    markersForTimeline = []
     swearCount = 0
     keywordCount = 0
     with open(inputFilePath) as f:
@@ -71,20 +91,11 @@ def MarkWords(inputFilePath, outputFilePath, swears, keywords, fps):
             timeOut = timeParts[2]
             marker = {"timeIn": timeIn, "timeOut": timeOut, "marking": marking, "content": content, "colour": colour}
             markers.append(marker)
-
-    edlHeader = f"TITLE: Swears and keywords\nFCM: NON-DROP FRAME\n\n"
-    edlTxt = edlHeader
-
-    i = 0
-    for m in markers:
-        i += 1
-        edlTxt += f"{str(i).zfill(3)}  001      V     C        {tcToTs(m["timeIn"], fps)} {tcToTs(m["timeOut"], fps)} {tcToTs(m["timeIn"], fps)} {tcToTs(m["timeOut"], fps)}\n"
-        edlTxt += f" |C:ResolveColor{m["colour"]} |M:{m["marking"]} |D:{getDuration(m["timeIn"], m["timeOut"], fps)}\n\n"
+            timelineMarker = {"timeIn": tcToTime(timeIn), "duration": (tcToTime(timeOut)-tcToTime(timeIn)), "type": marking.split(" ")[0]}
+            markersForTimeline.append(timelineMarker)
 
     with open("json/swears.json", "w") as f:
         f.write(json.dumps(markedSwears, indent=4))
         f.close()
 
-    with open(outputFilePath, "w") as f:
-        f.write(edlTxt)
-        f.close()
+    return markersForTimeline, markers
