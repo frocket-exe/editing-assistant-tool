@@ -30,27 +30,23 @@ class MainWindow(QMainWindow):
         self.silenceTab = SilenceTab("Silences")
         self.silenceTab.videoCut.connect(self.initAnalysisTab)
         self.transcribeTab = TranscribeTab("Transcribe")
-        self.markWordsTab = MarkWordsTab("Mark Words")
+        self.transcribeTab.videoTranscribed.connect(self.initMarkWordsTab)
         self.tabs.addTab(self.silenceTab, self.silenceTab.title)
         self.tabs.addTab(self.transcribeTab, self.transcribeTab.title)
-        self.tabs.addTab(self.markWordsTab, self.markWordsTab.title)
 
     def initAnalysisTab(self, cutVideoPath):
         self.cutVideoPath = cutVideoPath
         self.analysisTab = AnalysisTab("Analysis", self.inputVideoPath, self.cutVideoPath)
         self.tabs.insertTab(2, self.analysisTab, self.analysisTab.title)
 
+    def initMarkWordsTab(self):
+        self.markWordsTab = MarkWordsTab("Mark Words")
+        self.tabs.addTab(self.markWordsTab, self.markWordsTab.title)
 
-app = QApplication(sys.argv)
 
-window = MainWindow()
-# window = ImportTab("Import")
-# window = SilenceTab("Silences")
-# window = TranscribeTab("Transcribe")
-# window = MarkWordsTab("Mark Words")
-# inputVideoPath = "media/testVideo01.mp4"
-# cutVideoPath = "media/cutVideo.mp4"
-# window = AnalysisTab("Analysis", inputVideoPath, cutVideoPath)
-window.show()
+# app = QApplication(sys.argv)
 
-app.exec()
+# window = MainWindow()
+# window.show()
+
+# app.exec()
