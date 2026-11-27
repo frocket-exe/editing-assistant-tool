@@ -1,8 +1,7 @@
 from PySide6.QtWidgets import QApplication
 import sys
 import os
-# from gui.mainWindow import MainWindow
-import gui.mainWindow
+from gui.mainWindow import MainWindow
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def createDirectories():
@@ -12,12 +11,9 @@ def createDirectories():
 
 if __name__ == "__main__":
     createDirectories()
-    # app = QApplication(sys.argv)
+    app = QApplication(sys.argv)
 
-    # window = MainWindow()
-    # window = ImportTab("Import")
-    # window = SilenceTab("Silences")
-    # window = TranscribeTab("Transcribe")
-    # window.show()
+    window = MainWindow()
+    window.show()
 
-    # sys.exit(app.exec())
+    sys.exit(app.exec())
