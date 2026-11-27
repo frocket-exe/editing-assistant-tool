@@ -1,18 +1,20 @@
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QGridLayout, QLabel, QVBoxLayout, QHBoxLayout, QSizePolicy, QFileDialog
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QSizePolicy, QFileDialog
+from PySide6.QtCore import Qt, Signal
 from pathlib import Path
-import sys
 from .tab import Tab
 from scripts.getProperties import getProperties
 import json
 
 
+# Import Tab Class inherits from Tab class
 class ImportTab(Tab):
+    # Custom signal to report to mainWindow.py when a video has been imported
     videoImported = Signal(str)
 
     def __init__(self, title):
         super().__init__(title)
 
+        # Create GUI elements
         selectVideoButton = QPushButton("Select video")
         selectVideoButton.clicked.connect(self.openFile)
         self.buttonResponse = QLabel()
@@ -27,6 +29,8 @@ class ImportTab(Tab):
         self.audioInfo.setWordWrap(True)
         self.audioInfo.setAlignment(Qt.AlignTop)
 
+        # Organise GUI elements in layout
+        # Main layout is a VBox - widgets laid on top of one another in rows
         layout = QVBoxLayout()
         infoContainer = QWidget()
         videoContainer = QWidget()
@@ -45,11 +49,15 @@ class ImportTab(Tab):
         subLayout.addWidget(audioContainer)
         layout.addWidget(infoContainer)
 
+        # Allow the informational sections to take 3/4 of empty space when resizing windows
+        # Import button takes the other 1/4 of the empty space
+        # Keeps some margin between the information sections
         layout.setStretch(0, 1)
         layout.setStretch(1, 0)
         layout.setStretch(2, 3)
         subLayout.setSpacing(15)
 
+        # Ensures correct resizing of elements
         videoTitle.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         audioTitle.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.videoInfo.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
@@ -57,6 +65,7 @@ class ImportTab(Tab):
 
         self.setLayout(layout)
 
+        # Setting object names of GUI elements to add custom styling with Qt Style Sheet (styles/import.qss)
         self.setObjectName("ImportTab")
         selectVideoButton.setObjectName("SelectVideoButton")
         self.buttonResponse.setObjectName("Response")
@@ -65,38 +74,49 @@ class ImportTab(Tab):
         videoTitle.setObjectName("VideoTitle")
         audioTitle.setObjectName("AudioTitle")
 
+        # Import QSS for custom styling
         stylePath = Path(__file__).resolve().parent.parent / "styles" / "import.qss"
         with open(stylePath, "r") as f:
             self.setStyleSheet(f.read())
 
+    # Function to validate and open file - connected to import video button
     def openFile(self):
+        # Sanitisation - only allows video files
         allowedFileTypes = [".mp4", ".mkv", ".mov"]
         fileName = QFileDialog.getOpenFileName(self, "Open File", "media/", f"Video Files ({" ".join([("*"+ext) for ext in allowedFileTypes])});; All Files (*.*)")[0]
         fileExists = (fileName != '')
+        # Validation - only proceeds if the file exists
         if fileExists:
             fileExt = Path(fileName).suffix
             if fileExt in allowedFileTypes:
+                # Write metadata properties to json/videoMetrics.json
                 getProperties(fileName)
+                # Confirm to user that the file has been imported correctly
                 fileShortName = Path(fileName).stem + Path(fileName).suffix
                 self.buttonResponse.setText(f"Video imported successfully - {fileShortName}")
                 self.buttonResponse.setProperty("status", "success")
                 self.buttonResponse.style().unpolish(self.buttonResponse)
                 self.buttonResponse.style().polish(self.buttonResponse)
+                # Call labels to be updated with newly gathered info
                 self.updateInfoLabel()
                 self.videoImported.emit(fileName)
             else:
+                # Highlight to user that the file has not been correctly imported
                 self.buttonResponse.setText("This is not an allowed file type.")
                 self.buttonResponse.setProperty("status", "error")
                 self.buttonResponse.style().unpolish(self.buttonResponse)
                 self.buttonResponse.style().polish(self.buttonResponse)
+                # Reset information boxes to show new video has been attempted to be imported
                 self.videoInfo.setText("")
                 self.audioInfo.setText("")
 
+    # Update info boxes
     def updateInfoLabel(self):
         videoInfo, audioInfo = self.jsonToStr()
         self.videoInfo.setText(videoInfo)
         self.audioInfo.setText(audioInfo)
 
+    # Read json/videoMetrics.json and return a nicely formatted string showing the information
     def jsonToStr(self):
         with open("json/videoMetrics.json", "r") as f:
             data = json.load(f)

@@ -1,8 +1,10 @@
-import sys
 from PySide6.QtCore import Qt, QMargins, QPoint, QRect, QSize
-from PySide6.QtWidgets import QApplication, QLayout, QPushButton, QSizePolicy, QWidget
+from PySide6.QtWidgets import QLayout, QSizePolicy
 
 
+# Class inheriting from QLayout
+# Custom layout to allow wrapping of child widets across multiple lines
+# Taken from Qt6 documentation (https://doc.qt.io/qtforpython-6/examples/example_widgets_layouts_flowlayout.html)
 class FlowLayout(QLayout):
     def __init__(self, parent=None):
         super().__init__(parent)

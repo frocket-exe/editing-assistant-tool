@@ -1,51 +1,41 @@
 from PySide6.QtWidgets import (
-    QApplication, 
     QWidget, 
     QPushButton, 
-    QMainWindow, 
-    QGridLayout, 
     QLabel, 
     QVBoxLayout, 
     QHBoxLayout, 
     QSizePolicy, 
     QFileDialog, 
     QSlider, 
-    QComboBox, 
-    QLineEdit, 
-    QCompleter, 
-    QListWidget, 
-    QListWidgetItem, 
-    QListView,
-    QFrame,
-    QToolButton,
-    QCheckBox,
     QMessageBox,
     QStackedLayout
     )
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QIcon
-from PySide6.QtCore import QSize, Qt, QTimer, Signal, Slot, QUrl
-from pathlib import Path
-import sys
+from PySide6.QtCore import Qt, QTimer, QUrl
 from .tab import Tab, TagBar, AspectRatioLayout, milliToTimecode
 from scripts.markWords import MarkWords, markersToEdl
 from scripts.censor import silenceSwears, generateBleep, combineBleep
 import json
 import os
 
+# Custom Mark Words Tab class inherits from Tab
 class MarkWordsTab(Tab):
     def __init__(self, title):
         super().__init__(title)
 
+        # Connect video player to navigation slider
         self.inputPlayer.positionChanged.connect(self.updateInputVideoNav)
         self.setInputVideo()
 
+        # Create container to force video aspect ratio
         inputAspectContainer = QWidget()
         inputAspectContainer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         inputAspectLayout = AspectRatioLayout(4/3, inputAspectContainer)
         inputAspectLayout.addWidget(self.inputVideo)
 
+        # Create navigation container/widgets for main video player
         navigationContainer = QWidget()
         navigation = QHBoxLayout(navigationContainer)
         playButton = QPushButton()
@@ -68,6 +58,7 @@ class MarkWordsTab(Tab):
         mainVideo.addWidget(inputAspectContainer)
         mainVideo.addWidget(navigationContainer)
 
+        # Creating widgets for playing the censored video
         self.censorVideo = QVideoWidget()
         self.censorAudio = QAudioOutput()
         self.censorPlayer = QMediaPlayer()
@@ -75,12 +66,14 @@ class MarkWordsTab(Tab):
         self.censorPlayer.setVideoOutput(self.censorVideo)
         self.censorPlayer.positionChanged.connect(self.updatecensorVideoNav)
         self.censorPlayer.mediaStatusChanged.connect(self.censorMediaLoaded)
-        
+
+        # Use AspectRatioLayout to force video aspect ratio on resize
         censorAspectContainer = QWidget()
         censorAspectContainer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         censorAspectLayout = AspectRatioLayout(4/3, censorAspectContainer)
         censorAspectLayout.addWidget(self.censorVideo)
 
+        # Navigation UI for censor video
         censorNavigationContainer = QWidget()
         censorNavigation = QHBoxLayout(censorNavigationContainer)
         censorPlayButton = QPushButton()
@@ -108,6 +101,8 @@ class MarkWordsTab(Tab):
         videoPlayers.addWidget(mainVideoContainer)
         videoPlayers.addWidget(censorVideoContainer)
 
+        # Create "timeline" canvas filled green
+        # Add a label with the timelineMarker.png to represent a timeline playhead
         self.canvasWidth = 850
         self.canvasHeight = 50
         markStackContainer = QWidget()
@@ -120,12 +115,12 @@ class MarkWordsTab(Tab):
         self.timelineMarker = QLabel()
         self.timelineMarker.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.timelineMarker.setPixmap(QPixmap("gui/icons/timelineMarker.png").scaled(int(self.canvasHeight/2.4), int(self.canvasHeight*1.2)))
-        print(f"{int(0-(self.canvasWidth/2))}\n\n\n\n\n\n\n\n\n")
         markStack.addWidget(self.labelmark)
         markStack.addWidget(self.timelineMarker)
         markStack.setCurrentWidget(self.timelineMarker)
         markStack.setStackingMode(QStackedLayout.StackingMode.StackAll)
 
+        # UI elements relating to user inputting words to censor
         censorContainer = QWidget()
         censorLayout = QVBoxLayout(censorContainer)
         cenLabel = QLabel("Words to censor: ")
@@ -133,6 +128,7 @@ class MarkWordsTab(Tab):
         censorLayout.addWidget(cenLabel)
         censorLayout.addWidget(self.censor)
 
+        # UI element relating to user inputting keywords to mark
         keyContainer = QWidget()
         keyLayout = QVBoxLayout(keyContainer)
         keyLabel = QLabel("Keywords to detect: ")
@@ -145,6 +141,8 @@ class MarkWordsTab(Tab):
         inputLayout.addWidget(censorContainer)
         inputLayout.addWidget(keyContainer)
 
+        # Buttons to detect words, silence swear words, censor swear words and export an EDL of markers
+        # All connected to their relevant methods
         detectButt = QPushButton("Detect")
         detectButt.clicked.connect(self.detect)
         silenceButt = QPushButton("Silence swears")
@@ -161,14 +159,19 @@ class MarkWordsTab(Tab):
         buttonsLayout.addWidget(censorButt)
         buttonsLayout.addWidget(downloadButt)
 
+        # Add all containers to overarching layout
         layout = QVBoxLayout()
         layout.addWidget(videoPlayersContainer)
         layout.addWidget(markStackContainer)
         layout.addWidget(inputContainer)
         layout.addWidget(buttonsContainer)
         self.setLayout(layout)
+
+        # Calls setInitialValues once UI has been generated
         QTimer.singleShot(0, self.setInitialValues)
 
+    # If swears.json has been created run markersToEdl
+    # If not let the user know they need to detect swears first
     def exportEdl(self):
         if os.path.exists("json/swears.json"):
             with open("json/videoMetrics.json", "r") as f:
@@ -182,6 +185,8 @@ class MarkWordsTab(Tab):
             msgBox.exec()
 
 
+    # If the silenced video has been created, generate a beep and mix it's audio with the silent video to produce a censored video
+    # If not, let the user know they need to make a silenced video first
     def censorSwearsButt(self):
         if self.videoCensored == True:
             self.censoredVideoPath = QFileDialog.getSaveFileName(self, "Save censored video", "censor/censoredVideo.mp4", "MP4 (*.mp4)")[0]
@@ -195,6 +200,8 @@ class MarkWordsTab(Tab):
             msgBox.exec()
 
 
+    # If swears have been detected create a video where the swear words have been silenced.
+    # If not, let the user know they must detect swear words first
     def silenceSwearsButt(self):
         if os.path.exists("json/swears.json"):
             self.silentVideoPath = QFileDialog.getSaveFileName(self, "Save silenced video", "censor/silencedVideo.mp4", "MP4 (*.mp4)")[0]
@@ -208,10 +215,13 @@ class MarkWordsTab(Tab):
             msgBox.exec()
             
 
+    # Draw yellow rectangles on timeline where keywords are
+    # Draw red rectangles on timeline where swear words are
     def markTimeline(self):
         colourKey = {"keyword": "#e8d722", "swear": "#e22323"}
         duration = self.inputPlayer.duration()
         canvas = self.labelmark.pixmap()
+        # Fill canvas with green first in case this process is done multiple times, acts as a reset
         canvas.fill(QColor("#11ba2a"))
         painter = QPainter(canvas)
         pen = QPen()
@@ -230,6 +240,7 @@ class MarkWordsTab(Tab):
         self.labelmark.setPixmap(canvas)
 
 
+    # Get SRT input file from user, retrieve swear words and keywords to mark and pass these through to MarkWords()
     def detect(self):
         inputFile = QFileDialog.getOpenFileName(self, "Open File", "srt/wordLevelTranscription.srt", f"SRT (*.srt)")[0]
         fileExists = (inputFile != '')
@@ -239,50 +250,64 @@ class MarkWordsTab(Tab):
             self.markers, self.swearMarkers = MarkWords(inputFile, censorWords, keyWordsToDetect)
             self.markTimeline()
 
+    # Play censor video
     def playcensor(self):
         self.censorPlayer.play()
 
+    # Pause censor video
     def pausecensor(self):
         self.censorPlayer.pause()
 
+    # When video progresses, update slider to show progress
+    # If silent/censored video has been made, update timeline marker position
     def updatecensorVideoNav(self):
         self.censorVideoProgress.setValue(self.censorPlayer.position())
         self.censorVideoProgressLabel.setText(f"{milliToTimecode(self.censorPlayer.position())}/{milliToTimecode(self.censorPlayer.duration())}")
         if self.videoCensored == True:
             self.timelineMarker.move(int(self.censorPlayer.position()/self.censorPlayer.duration()*self.canvasWidth-(self.canvasWidth/2)), 0)
 
+    # When slider is released, update position in video and play from there
     def censorSliderReleased(self):
         self.censorPlayer.setPosition(self.censorVideoProgress.value())
         self.censorPlayer.play()
 
+    # Set range of slider when censor video has been loaded as this is an asynchronous process
     def censorMediaLoaded(self, status):
         if status == QMediaPlayer.MediaStatus.LoadedMedia:
             self.censorVideoProgress.setRange(0, self.censorPlayer.duration())
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            # Pausing when the media reaches the end shows the first frame of the video - acting as a thumbnail
             self.censorPlayer.pause()
 
+    # Play the input video
     def playInput(self):
         self.inputPlayer.play()
         self.videoProgress.setRange(0, self.inputPlayer.duration())
 
+    # Pause the input video
     def pauseInput(self):
         self.inputPlayer.pause()
 
+    # Set initial values necessary for logic/styling
     def setInitialValues(self):
         self.videoProgressLabel.setText("00:00/00:00")
         self.censorVideoProgressLabel.setText("00:00/00:00")
         self.timelineMarker.move((int(0-(self.canvasWidth/2))), 0)
         self.videoCensored = False
 
+    # When input video progress changes, set navigation slider value to reflect this
+    # If the silenced video and censored video haven't yet been made, update position of timeline marker
     def updateInputVideoNav(self):
         self.videoProgress.setValue(self.inputPlayer.position())
         self.videoProgressLabel.setText(f"{milliToTimecode(self.inputPlayer.position())}/{milliToTimecode(self.inputPlayer.duration())}")
         if self.videoCensored == False:
             self.timelineMarker.move(int(self.inputPlayer.position()/self.inputPlayer.duration()*self.canvasWidth-(self.canvasWidth/2)), 0)
 
+    # When slider is released, update position in video and play from there
     def inputSliderReleased(self):
         self.inputPlayer.setPosition(self.videoProgress.value())
         self.inputPlayer.play()
 
+    # Get value from slider
     def changeSliderLabel(self, slider, label, div=1):
         label.setText(str(slider.value()/div))
