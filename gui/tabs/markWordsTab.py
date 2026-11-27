@@ -6,6 +6,13 @@ from .tab import Tab
 from scripts.getProperties import getProperties
 import json
 
-class ImportTab(Tab):
+class MarkWordsTab(Tab):
     def __init__(self, title):
         super().__init__(title)
+
+        inputV
+
+        videoPlayersContainer = QWidget()
+        videoPlayers = QHBoxLayout(videoPlayersContainer)
+
+        layout = QVBoxLayout()

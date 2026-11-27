@@ -18,7 +18,6 @@ class Tab(QWidget):
         self.inputPlayer = QMediaPlayer()
         self.inputPlayer.setAudioOutput(self.inputAudio)
         self.inputPlayer.setVideoOutput(self.inputVideo)
-        self.setInputVideo()
 
     def setInputVideo(self):
         with open("json/videoMetrics.json", "r") as f:

@@ -134,6 +134,7 @@ class TranscribeTab(Tab):
         super().__init__(title)
 
         self.inputPlayer.positionChanged.connect(self.updateInputVideoNav)
+        self.setInputVideo()
 
         inputAspectContainer = QWidget()
         inputAspectContainer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
