@@ -232,7 +232,7 @@ class TranscribeTab(Tab):
             self.subPlayer.pause()
 
     def sanitiseCaptions(self):
-        inputFile = QFileDialog.getOpenFileName(self, "Open File", "srt/", f"SRT (*.srt)")[0]
+        inputFile = QFileDialog.getOpenFileName(self, "Open File", "srt/captions.srt", f"SRT (*.srt)")[0]
         fileExists = (inputFile != '')
         if fileExists:
             outputFile = QFileDialog.getSaveFileName(self, "Choose location", "srt/sanitised.srt", "SRT (*.srt)")[0]
