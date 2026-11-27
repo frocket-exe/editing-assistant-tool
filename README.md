@@ -28,7 +28,7 @@
 - [ ] Detect low-motion/static scenes
 - [x] Auto cut silences
 - [ ] Subtitle translation
-- [ ] Plot graphs about video properties
+- [x] Plot graphs about video properties
 - [ ] Compare score for video before/after processing
 
 # Dependencies
