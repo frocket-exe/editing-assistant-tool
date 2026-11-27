@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, Q
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QIcon
-from PySide6.QtCore import QSize, Qt, QRect, QUrl, QTimer
+from PySide6.QtCore import QSize, Qt, QRect, QUrl, QTimer, Signal
 from scripts.silence import silencesToTimeline, cutsToTimeline, findSilences, createVadVideo, markSilences, removeSilences
 from scripts.jsonToEdl import jsonToEdl
 from .tab import Tab, AspectRatioLayout, milliToTimecode
@@ -16,6 +16,8 @@ import os
 
 
 class SilenceTab(Tab):
+    videoCut = Signal(str)
+
     def __init__(self, title):
         super().__init__(title)
 
@@ -26,7 +28,7 @@ class SilenceTab(Tab):
 
         self.inputPlayer.playbackStateChanged.connect(self.switchThumbnail)
         self.inputPlayer.positionChanged.connect(self.updateInputVideoNav)
-        # self.inputPlayer.play()
+        self.setInputVideo()
 
         self.thumbnail = QLabel()
         self.generateThumbnail(self.inputVideoPath, "gui/thumbnails/inputVideo.jpg")
@@ -211,6 +213,7 @@ class SilenceTab(Tab):
         self.switchThumbnail(self.inputPlayer.playbackState())
         QTimer.singleShot(0, self.resizeThumbnail)
         QTimer.singleShot(0, self.setInitialValues)
+        QTimer.singleShot(0, self.pauseInput)
 
         stylePath = Path(__file__).resolve().parent.parent / "styles" / "silence.qss"
         with open(stylePath, "r") as f:
@@ -228,15 +231,12 @@ class SilenceTab(Tab):
         self.cutVideoProgress.setValue(self.cutPlayer.position())
         self.cutVideoProgressLabel.setText(f"{milliToTimecode(self.cutPlayer.position())}/{milliToTimecode(self.cutPlayer.duration())}")
         timelineCuts = cutsToTimeline()
-        print(timelineCuts)
         offset = 0
         percentThrough = (self.cutPlayer.position()/self.inputPlayer.duration())
         for cut in timelineCuts:
             if cut["start"] <= percentThrough+offset:
                 offset += cut["size"]
         adjustedPercent = percentThrough + offset
-        print(percentThrough)
-        print(adjustedPercent)
         self.cutMarker.move(int((adjustedPercent*self.canvasWidth)-self.canvasWidth/2), 0)
 
     def playCut(self):
@@ -272,6 +272,7 @@ class SilenceTab(Tab):
         if fileExists:
             removeSilences(self.inputVideoPath, self.videoOutputPath)
             self.setCutVideo()
+            self.videoCut.emit(self.videoOutputPath)
 
     def changeSliderLabel(self, slider, label):
         label.setText(str(slider.value()/100))
